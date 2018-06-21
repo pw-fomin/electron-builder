@@ -4,6 +4,7 @@ import { AppXOptions } from "./options/AppXOptions"
 import { AppImageOptions, DebOptions, LinuxConfiguration, LinuxTargetSpecificOptions } from "./options/linuxOptions"
 import { DmgOptions, MacConfiguration, MasConfiguration, PkgOptions } from "./options/macOptions"
 import { MsiOptions } from "./options/MsiOptions"
+import { WixOptions } from "./options/WixOptions"
 import { PlatformSpecificBuildOptions } from "./options/PlatformSpecificBuildOptions"
 import { SnapOptions } from "./options/SnapOptions"
 import { SquirrelWindowsOptions } from "./options/SquirrelWindowsOptions"
@@ -62,6 +63,7 @@ export interface Configuration extends PlatformSpecificBuildOptions {
   readonly appx?: AppXOptions | null
   /** @private */
   readonly msi?: MsiOptions | null
+  readonly wix?: WixOptions | null
   readonly squirrelWindows?: SquirrelWindowsOptions | null
 
   /**

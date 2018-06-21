@@ -187,6 +187,9 @@ export class WinPackager extends PlatformPackager<WindowsConfiguration> {
             case "msi":
               return require("./targets/MsiTarget").default
 
+            case "wix":
+              return require("./targets/WixTarget").default
+
             default:
               return null
           }
