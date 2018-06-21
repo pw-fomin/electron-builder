@@ -124,7 +124,7 @@ export class NsisUpdater extends BaseUpdater {
     }
 
     try {
-      if (path.extname(installerPath.toLowerCase()) === 'msi') {
+      if (installerPath.toLowerCase().endsWith('.msi')) {
         spawn('msiexec', ["-i", installerPath], spawnOptions)
           .unref()
       } else {
