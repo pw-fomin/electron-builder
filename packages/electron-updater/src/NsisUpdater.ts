@@ -19,7 +19,11 @@ export class NsisUpdater extends BaseUpdater {
   /*** @private */
   protected async doDownloadUpdate(updateInfo: UpdateInfo, cancellationToken: CancellationToken): Promise<Array<string>> {
     const provider = await this.provider
-    const fileInfo = findFile(provider.resolveFiles(updateInfo), "exe")!!
+    let fileInfo = findFile(provider.resolveFiles(updateInfo), "exe")!!
+    if (!fileInfo) {
+      // actually previous 'findFile' returns first fileInso with any extension, so this call is not necessary
+      fileInfo = findFile(provider.resolveFiles(updateInfo), "msi")!!
+    }
     const requestHeaders = await this.computeRequestHeaders()
     const downloadOptions: DownloadOptions = {
       skipDirCreation: true,
@@ -28,8 +32,13 @@ export class NsisUpdater extends BaseUpdater {
       sha512: fileInfo.info.sha512,
     }
 
+    let fileExtension = "exe"
+    if (fileInfo) {
+      fileExtension = path.extname(fileInfo.url.pathname.toLowerCase())
+    }
+
     return await this.executeDownload({
-      fileExtension: "exe",
+      fileExtension,
       downloadOptions,
       fileInfo,
       updateInfo,
@@ -115,8 +124,13 @@ export class NsisUpdater extends BaseUpdater {
     }
 
     try {
-      spawn(installerPath, args, spawnOptions)
-        .unref()
+      if (path.extname(installerPath.toLowerCase()) === 'msi') {
+        spawn('msiexec', ["-i", installerPath], spawnOptions)
+          .unref()
+      } else {
+        spawn(installerPath, args, spawnOptions)
+          .unref()
+      }
     }
     catch (e) {
       // yes, such errors dispatched not as error event
