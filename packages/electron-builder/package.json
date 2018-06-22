@@ -1,7 +1,7 @@
 {
   "name": "electron-builder",
   "description": "A complete solution to package and build a ready for distribution Electron app for MacOS, Windows and Linux with “auto update” support out of the box",
-  "version": "0.0.0-semantic-release",
+  "version": "20.15.3-passware.1",
   "main": "out/index.js",
   "files": [
     "out"
@@ -11,7 +11,7 @@
     "build": "./out/cli/cli.js",
     "install-app-deps": "./out/cli/install-app-deps.js"
   },
-  "repository": "electron-userland/electron-builder",
+  "repository": "pw-fomin/electron-builder",
   "engines": {
     "node": ">=6.11.4"
   },
@@ -43,13 +43,13 @@
     "Stefan Judis"
   ],
   "license": "MIT",
-  "bugs": "https://github.com/electron-userland/electron-builder/issues",
-  "homepage": "https://github.com/electron-userland/electron-builder",
+  "bugs": "https://github.com/pw-fomin/electron-builder/issues",
+  "homepage": "https://github.com/pw-fomin/electron-builder",
   "dependencies": {
     "bluebird-lst": "^1.0.5",
     "chalk": "^2.4.1",
-    "builder-util-runtime": "0.0.0-semantic-release",
-    "builder-util": "0.0.0-semantic-release",
+    "builder-util-runtime": "4.2.1",
+    "builder-util": "5.11.4",
     "fs-extra-p": "^4.6.0",
     "is-ci": "^1.1.0",
     "read-config-file": "3.0.1",
@@ -57,9 +57,9 @@
     "update-notifier": "^2.5.0",
     "yargs": "^11.0.0",
     "lazy-val": "^1.0.3",
-    "electron-builder-lib": "0.0.0-semantic-release",
+    "electron-builder-lib": "20.15.3-passware.1",
     "electron-download-tf": "4.3.4",
-    "dmg-builder": "0.0.0-semantic-release"
+    "dmg-builder": "4.10.1"
   },
   "typings": "./out/index.d.ts",
   "publishConfig": {
@@ -67,5 +67,9 @@
   },
   "yargs": {
     "camel-case-expansion": false
+  },
+  "publishConfig": {
+    "registry": "https://nexus.passware.com/repository/npm/",
+    "strict-ssl": false
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@passware/electron-updater",
+  "name": "electron-updater",
   "version": "2.21.11-passware.2",
   "description": "Cross platform updater for electron applications",
   "main": "out/main.js",
@@ -24,7 +24,7 @@
   },
   "typings": "./out/main.d.ts",
   "publishConfig": {
-    "@passware:registry": "https://nexus.passware.com/repository/npm/",
+    "registry": "https://nexus.passware.com/repository/npm/",
     "strict-ssl": false
   }
 }
