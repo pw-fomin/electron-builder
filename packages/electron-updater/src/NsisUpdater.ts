@@ -20,8 +20,7 @@ export class NsisUpdater extends BaseUpdater {
   protected async doDownloadUpdate(updateInfo: UpdateInfo, cancellationToken: CancellationToken): Promise<Array<string>> {
     const provider = await this.provider
     let fileInfo = findFile(provider.resolveFiles(updateInfo), "exe")!!
-    if (!fileInfo) {
-      // actually previous 'findFile' returns first fileInso with any extension, so this call is not necessary
+    if (!fileInfo || !fileInfo.url.pathname.toLowerCase().endsWith("exe")) {
       fileInfo = findFile(provider.resolveFiles(updateInfo), "msi")!!
     }
     const requestHeaders = await this.computeRequestHeaders()
@@ -34,7 +33,7 @@ export class NsisUpdater extends BaseUpdater {
 
     let fileExtension = "exe"
     if (fileInfo) {
-      fileExtension = path.extname(fileInfo.url.pathname.toLowerCase())
+      fileExtension = path.extname(fileInfo.url.pathname.toLowerCase()).replace(".", "")
     }
 
     return await this.executeDownload({
