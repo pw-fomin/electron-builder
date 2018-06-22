@@ -1,30 +1,29 @@
 {
-  "name": "@passware/electron-updater",
-  "version": "2.21.11-passware.1",
+  "name": "electron-updater",
+  "version": "0.0.0-semantic-release",
   "description": "Cross platform updater for electron applications",
   "main": "out/main.js",
   "author": "Vladimir Krivosheev",
   "license": "MIT",
-  "repository": "pw-fomin/electron-builder",
-  "bugs": "https://github.com/pw-fomin/electron-builder/issues",
-  "homepage": "https://github.com/pw-fomin/electron-builder",
+  "repository": "electron-userland/electron-builder",
+  "bugs": "https://github.com/electron-userland/electron-builder/issues",
+  "homepage": "https://github.com/electron-userland/electron-builder",
   "files": [
     "out"
   ],
   "dependencies": {
+    "lazy-val": "^1.0.3",
     "bluebird-lst": "^1.0.5",
-    "builder-util-runtime": "~4.2.1",
-    "electron-is-dev": "^0.3.0",
     "fs-extra-p": "^4.6.0",
     "js-yaml": "^3.11.0",
-    "lazy-val": "^1.0.3",
-    "lodash.isequal": "^4.5.0",
     "semver": "^5.5.0",
-    "source-map-support": "^0.5.6"
+    "source-map-support": "^0.5.6",
+    "builder-util-runtime": "~0.0.0-semantic-release",
+    "electron-is-dev": "^0.3.0",
+    "lodash.isequal": "^4.5.0"
   },
   "typings": "./out/main.d.ts",
   "publishConfig": {
-    "@passware:registry": "https://nexus.passware.com/repository/npm/",
-    "strict-ssl": false
+    "tag": "next"
   }
 }
