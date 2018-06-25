@@ -29,10 +29,10 @@ export default class WixTarget extends Target {
     const stageDir = await createStageDir(this, packager, arch)
     const vm = this.vm
 
-    const candleFiles = this.options.candleFiles ? this.options.candleFiles : []
-    const candleFlags = this.options.candleFlags ? this.options.candleFlags : []
-    const lightFiles = this.options.lightFiles ? this.options.lightFiles : []
-    const lightFlags = this.options.lightFlags ? this.options.lightFlags : []
+    const candleFiles = this.options.candleFiles || []
+    const candleFlags = this.options.candleFlags || []
+    const lightFiles = this.options.lightFiles || []
+    const lightFlags = this.options.lightFlags || []
     const appInfo = this.packager.appInfo
     const mainExeFileName = `${appInfo.productFilename}.exe`
 
