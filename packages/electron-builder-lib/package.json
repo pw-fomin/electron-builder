@@ -1,7 +1,7 @@
 {
   "name": "electron-builder-lib",
   "description": "electron-builder lib",
-  "version": "20.15.3-passware.1",
+  "version": "20.15.3-passware.2",
   "main": "out/index.js",
   "files": [
     "out",
