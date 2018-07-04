@@ -1,6 +1,6 @@
-import { Arch, deepAssign } from "builder-util"
+import { Arch, deepAssign, serializeToYaml } from "builder-util"
 import { UUID } from "builder-util-runtime"
-import { writeFile } from "fs-extra-p"
+import { outputFile, writeFile } from "fs-extra-p"
 import * as path from "path"
 import * as fs from "fs"
 import * as crypto from "crypto"
@@ -10,6 +10,7 @@ import { VmManager } from "../vm/vm"
 import { WineVmManager } from "../vm/WineVm"
 import { WinPackager } from "../winPackager"
 import { createStageDir } from "./targetUtil"
+import { getAppUpdatePublishConfiguration } from "../publish/PublishManager"
 
 export default class WixTarget extends Target {
   private readonly vm = process.platform === "win32" ? new VmManager() : new WineVmManager()
@@ -35,6 +36,12 @@ export default class WixTarget extends Target {
     const lightFlags = this.options.lightFlags || []
     const appInfo = this.packager.appInfo
     const mainExeFileName = `${appInfo.productFilename}.exe`
+
+    // this must be done before ApplicationFiles.wxs generation
+    const publishConfig = await getAppUpdatePublishConfiguration(packager, arch, false)
+    if (publishConfig != null) {
+      await outputFile(path.join(packager.getResourcesDir(appOutDir), "app-update.yml"), serializeToYaml(publishConfig))
+    }
 
     const wixApplicationFiles = stageDir.getTempFile('ApplicationFiles.wxs')
     let generatedFilesData = this.generateWixSources(appOutDir, mainExeFileName, arch)
