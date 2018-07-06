@@ -1,5 +1,6 @@
 import { Arch, deepAssign, serializeToYaml } from "builder-util"
 import { UUID } from "builder-util-runtime"
+import { getBinFromGithub } from "builder-util/out/binDownload"
 import { outputFile, writeFile } from "fs-extra-p"
 import * as path from "path"
 import * as fs from "fs"
@@ -56,15 +57,17 @@ export default class WixTarget extends Target {
     ]
     candleArgs.push(...candleFlags)
 
+    const vendorPath = await getBinFromGithub("wix", "4.0.0.5512.2", "/X5poahdCc3199Vt6AP7gluTlT1nxi9cbbHhZhCMEu+ngyP1LiBMn+oZX7QAZVaKeBMc2SjVp7fJqNLqsUnPNQ==")
+
     for (var filename of candleFiles) {
       const outputFilename = path.join(stageDir.dir, path.basename(filename).replace('.wxs', '.wxsobj'))
-      await vm.exec(vm.toVmFile('candle.exe'), candleArgs.concat('-out', outputFilename, filename), {
+      await vm.exec(vm.toVmFile(path.join(vendorPath, 'candle.exe')), candleArgs.concat('-out', outputFilename, filename), {
         cwd: stageDir.dir
       })
       lightFiles.push(outputFilename)
     }
 
-    await this.light(lightFiles, lightFlags, vm, artifactPath, appOutDir, stageDir.dir)
+    await this.light(lightFiles, lightFlags, vm, artifactPath, appOutDir, vendorPath, stageDir.dir)
 
     await stageDir.cleanup()
 
@@ -80,7 +83,7 @@ export default class WixTarget extends Target {
     })
   }
 
-  private async light(objectFiles: Array<string>, lightFlags: Array<string>, vm: VmManager, artifactPath: string, appOutDir: string, tempDir: string) {
+  private async light(objectFiles: Array<string>, lightFlags: Array<string>, vm: VmManager, artifactPath: string, appOutDir: string, vendorPath: string, tempDir: string) {
     const appSize = this.getSize(appOutDir)
 
     const lightArgs = [
@@ -95,7 +98,7 @@ export default class WixTarget extends Target {
     lightArgs.push(...lightFlags)
     lightArgs.push(...objectFiles)
 
-    await vm.exec(vm.toVmFile('light.exe'), lightArgs, {
+    await vm.exec(vm.toVmFile(path.join(vendorPath, 'light.exe')), lightArgs, {
       cwd: tempDir
     })
   }
@@ -242,7 +245,7 @@ export default class WixTarget extends Target {
     }
 
     const wixFragmentTemplate = `<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
     <Fragment>
         ${wixFragmentBody.trim()}
     </Fragment>
