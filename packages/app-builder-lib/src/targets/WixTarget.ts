@@ -1,6 +1,6 @@
 import { Arch, deepAssign, serializeToYaml } from "builder-util"
-import { UUID } from "builder-util-runtime"
-import { getBinFromGithub } from "builder-util/out/binDownload"
+import uuid from "uuid/v1"
+import { getBinFromUrl } from "../binDownload"
 import { outputFile, writeFile } from "fs-extra-p"
 import * as path from "path"
 import * as fs from "fs"
@@ -26,7 +26,6 @@ export default class WixTarget extends Target {
     const packager = this.packager
     const artifactName = packager.expandArtifactNamePattern(this.options, "msi", arch)
     const artifactPath = path.join(this.outDir, artifactName)
-    this.logBuilding("WIX", artifactPath, arch)
 
     const stageDir = await createStageDir(this, packager, arch)
     const vm = this.vm
@@ -57,7 +56,7 @@ export default class WixTarget extends Target {
     ]
     candleArgs.push(...candleFlags)
 
-    const vendorPath = await getBinFromGithub("wix", "4.0.0.5512.2", "/X5poahdCc3199Vt6AP7gluTlT1nxi9cbbHhZhCMEu+ngyP1LiBMn+oZX7QAZVaKeBMc2SjVp7fJqNLqsUnPNQ==")
+    const vendorPath = await getBinFromUrl("wix", "4.0.0.5512.2", "/X5poahdCc3199Vt6AP7gluTlT1nxi9cbbHhZhCMEu+ngyP1LiBMn+oZX7QAZVaKeBMc2SjVp7fJqNLqsUnPNQ==")
 
     for (var filename of candleFiles) {
       const outputFilename = path.join(stageDir.dir, path.basename(filename).replace('.wxs', '.wxsobj'))
@@ -181,7 +180,7 @@ export default class WixTarget extends Target {
       const directoryId = presetDictionaryId || this.generateId(dir.dirpath)
       const componentId = `${directoryId}_component`
       const removeFolderId = `${directoryId}_uninstall`
-      const componentGuid = UUID.v1().toUpperCase()
+      const componentGuid = uuid().toUpperCase()
       let componentElement = `${currentTabulation}<Component Id="${componentId}" Guid="${componentGuid}" Directory="${directoryId}" DiskId="1" KeyPath="yes" Win64="${isWin64}">\n`
 
       const dirItems = fs.readdirSync(dir.dirpath)
