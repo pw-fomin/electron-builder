@@ -36,6 +36,30 @@ Object {
 }
 `;
 
+exports[`custom guid 1`] = `
+Object {
+  "win": Array [
+    Object {
+      "arch": "ia32",
+      "file": "boo Hub Setup 1.1.0.exe",
+      "safeArtifactName": "boo-Hub-Setup-1.1.0.exe",
+      "updateInfo": Object {
+        "sha512": "@sha512",
+        "size": "@size",
+      },
+    },
+    Object {
+      "file": "boo Hub Setup 1.1.0.exe.blockmap",
+      "safeArtifactName": "boo-Hub-Setup-1.1.0.exe.blockmap",
+      "updateInfo": Object {
+        "sha512": "@sha512",
+        "size": "@size",
+      },
+    },
+  ],
+}
+`;
+
 exports[`custom include 1`] = `
 Object {
   "win": Array [
@@ -162,7 +186,7 @@ Object {
     Object {
       "arch": "ia32",
       "file": "Test Menu Category CustomName 1.1.0.exe",
-      "safeArtifactName": "test-menu-category-setup-1.1.0.exe",
+      "safeArtifactName": "Test-Menu-Category-CustomName-1.1.0.exe",
       "updateInfo": Object {
         "sha512": "@sha512",
         "size": "@size",
@@ -170,7 +194,7 @@ Object {
     },
     Object {
       "file": "Test Menu Category CustomName 1.1.0.exe.blockmap",
-      "safeArtifactName": "test-menu-category-setup-1.1.0.exe.blockmap",
+      "safeArtifactName": "Test-Menu-Category-CustomName-1.1.0.exe.blockmap",
       "updateInfo": Object {
         "sha512": "@sha512",
         "size": "@size",
@@ -219,13 +243,12 @@ Object {
         ],
         "path": "Test App ßW Setup 1.1.0.exe",
         "releaseDate": "@releaseDate",
-        "sha2": "@sha2",
         "sha512": "@sha512",
         "version": "1.1.0",
       },
     },
     Object {
-      "arch": "ia32",
+      "arch": "x64",
       "file": "Test App ßW Setup 1.1.0.exe",
       "safeArtifactName": "TestApp-Setup-1.1.0.exe",
       "updateInfo": Object {
@@ -250,6 +273,7 @@ Object {
   "owner": "actperepo",
   "package": "TestApp",
   "provider": "bintray",
+  "updaterCacheDirName": "testapp-updater",
 }
 `;
 
@@ -261,6 +285,7 @@ Object {
       "fileContent": Object {
         "files": Array [
           Object {
+            "isAdminRightsRequired": true,
             "sha512": "@sha512",
             "size": "@size",
             "url": "TestApp Setup 1.1.0.exe",
@@ -277,6 +302,7 @@ Object {
       "file": "TestApp Setup 1.1.0.exe",
       "safeArtifactName": "TestApp-Setup-1.1.0.exe",
       "updateInfo": Object {
+        "isAdminRightsRequired": true,
         "sha512": "@sha512",
         "size": "@size",
       },
@@ -285,6 +311,7 @@ Object {
       "file": "TestApp Setup 1.1.0.exe.blockmap",
       "safeArtifactName": "TestApp-Setup-1.1.0.exe.blockmap",
       "updateInfo": Object {
+        "isAdminRightsRequired": true,
         "sha512": "@sha512",
         "size": "@size",
       },
@@ -296,6 +323,7 @@ Object {
 exports[`perMachine, no run after finish 2`] = `
 Object {
   "provider": "generic",
+  "updaterCacheDirName": "testapp-updater",
   "url": "https://develar.s3.amazonaws.com/test/win/ia32",
 }
 `;

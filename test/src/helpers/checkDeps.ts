@@ -1,10 +1,8 @@
-import BluebirdPromise from "bluebird-lst"
 import chalk from "chalk"
 import depCheck, { DepCheckResult } from "depcheck"
-import { readdir, readJson } from "fs-extra-p"
+import { readJson } from "fs-extra"
+import { promises as fs } from "fs"
 import * as path from "path"
-
-require("v8-compile-cache")
 
 const printErrorAndExit = require("../../../packages/builder-util/out/promise").printErrorAndExit
 
@@ -16,10 +14,6 @@ const knownMissedDependencies = new Set<string>([
   "babel-preset-env",
   "babel-preset-stage-0",
   "babel-preset-react",
-  "@babel/preset-react",
-  "@babel/preset-stage-0",
-  "@babel/preset-env",
-  "@babel/core",
 ])
 
 const rootDir = path.join(__dirname, "../../..")
@@ -34,14 +28,21 @@ async function check(projectDir: string, devPackageData: any): Promise<boolean> 
       ignoreDirs: [
         "src", "test", "docs", "typings", "docker", "certs", "templates", "vendor",
       ],
+      // ignore d.ts
+      parsers: {
+        "*.js": (depCheck as any).parser.es6,
+      },
     }, resolve)
   })
 
-  // console.log(result)
+  let unusedDependencies: any
+  if (packageName === "electron-builder") {
+    unusedDependencies = result.dependencies.filter(it => it !== "dmg-builder" && it !== "bluebird-lst" && it !== "@types/yargs")
+  }
+  else {
+    unusedDependencies = result.dependencies.filter(it => it !== "bluebird-lst" && it !== "@types/debug" && it !== "@types/semver" && it !== "@types/fs-extra")
+  }
 
-  const unusedDependencies = (packageName === "electron-builder" ?
-    result.dependencies.filter(it => it !== "electron-download-tf" && it !== "dmg-builder") :
-    result.dependencies).filter(it => it !== "bluebird-lst")
   if (unusedDependencies.length > 0) {
     console.error(`${chalk.bold(packageName)} Unused dependencies: ${JSON.stringify(unusedDependencies, null, 2)}`)
     return false
@@ -61,7 +62,8 @@ async function check(projectDir: string, devPackageData: any): Promise<boolean> 
 
   for (const name of Object.keys(result.missing)) {
     if (name === "electron-builder-squirrel-windows" || name === "electron-webpack" ||
-      (packageName === "electron-builder-lib" && (name === "dmg-builder" || name === "electron-download-tf" || knownMissedDependencies.has(name)))) {
+      (packageName === "app-builder-lib" && (name === "dmg-builder" || knownMissedDependencies.has(name) || name.startsWith("@babel/"))) ||
+      (packageName === "app-builder-lib" && (name === "dmg-builder" || knownMissedDependencies.has(name) || name.startsWith("@babel/")))) {
       delete (result.missing as any)[name]
     }
   }
@@ -94,9 +96,9 @@ async function check(projectDir: string, devPackageData: any): Promise<boolean> 
 }
 
 async function main(): Promise<void> {
-  const packages = (await readdir(packageDir)).filter(it => !it.includes(".")).sort()
+  const packages = (await fs.readdir(packageDir)).filter(it => !it.includes(".")).sort()
   const devPackageData = await readJson(path.join(rootDir, "package.json"))
-  if ((await BluebirdPromise.map(packages, it => check(path.join(packageDir, it), devPackageData))).includes(false)) {
+  if ((await Promise.all(packages.map(it => check(path.join(packageDir, it), devPackageData)))).includes(false)) {
     process.exitCode = 1
   }
 }

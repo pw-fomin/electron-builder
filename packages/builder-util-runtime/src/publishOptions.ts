@@ -1,9 +1,9 @@
-export type PublishProvider = "github" | "bintray" | "s3" | "spaces" | "generic"
+import { OutgoingHttpHeaders } from "http"
+
+export type PublishProvider = "github" | "bintray" | "s3" | "spaces" | "generic" | "custom" | "snapStore"
 
 // typescript-json-schema generates only PublishConfiguration if it is specified in the list, so, it is not added here
-export type AllPublishOptions = string | GithubOptions | S3Options | SpacesOptions | GenericServerOptions | BintrayOptions
-// https://github.com/YousefED/typescript-json-schema/issues/80
-export type Publish = AllPublishOptions | Array<AllPublishOptions> | null
+export type AllPublishOptions = string | GithubOptions | S3Options | SpacesOptions | GenericServerOptions | BintrayOptions | CustomPublishOptions
 
 export interface PublishConfiguration {
   /**
@@ -13,8 +13,15 @@ export interface PublishConfiguration {
 
   /**
    * @private
+   * win-only
    */
-  readonly publisherName?: Array<string> | null
+  publisherName?: Array<string> | null
+
+  /**
+   * @private
+   * win-only
+   */
+  readonly updaterCacheDirName?: string | null
 
   /**
    * Whether to publish auto update info files.
@@ -25,6 +32,16 @@ export interface PublishConfiguration {
    * @default true
    */
   readonly publishAutoUpdate?: boolean
+
+  /**
+   * Any custom request headers
+   */
+  readonly requestHeaders?: OutgoingHttpHeaders
+}
+
+// https://github.com/electron-userland/electron-builder/issues/3261
+export interface CustomPublishOptions extends PublishConfiguration {
+  [index: string]: any
 }
 
 /**
@@ -68,12 +85,12 @@ export interface GithubOptions extends PublishConfiguration {
   readonly protocol?: "https" | "http" | null
 
   /**
-   * The access token to support auto-update from private github repositories. Never specify it in the configuration files. Only for [setFeedURL](/auto-update.md#appupdatersetfeedurloptions).
+   * The access token to support auto-update from private github repositories. Never specify it in the configuration files. Only for [setFeedURL](/auto-update#appupdatersetfeedurloptions).
    */
   readonly token?: string | null
 
   /**
-   * Whether to use private github auto-update provider if `GH_TOKEN` environment variable is defined. See [Private GitHub Update Repo](/auto-update.md#private-github-update-repo).
+   * Whether to use private github auto-update provider if `GH_TOKEN` environment variable is defined. See [Private GitHub Update Repo](/auto-update#private-github-update-repo).
    */
   readonly private?: boolean | null
 
@@ -93,7 +110,7 @@ export function githubUrl(options: GithubOptions, defaultHost: string = "github.
 
 /**
  * Generic (any HTTP(S) server) options.
- * In all publish options [File Macros](/file-patterns.md#file-macros) are supported.
+ * In all publish options [File Macros](/file-patterns#file-macros) are supported.
  */
 export interface GenericServerOptions extends PublishConfiguration {
   /**
@@ -219,29 +236,34 @@ function s3Url(options: S3Options) {
   if (options.endpoint != null) {
     url = `${options.endpoint}/${options.bucket}`
   }
-  else {
-    if (!options.bucket.includes(".")) {
-      if (options.region === "cn-north-1") {
-        url = `https://${options.bucket}.s3.${options.region}.amazonaws.com.cn`
-      }
-      else {
-        url = `https://${options.bucket}.s3.amazonaws.com`
-      }
+  else if (options.bucket.includes(".")) {
+    if (options.region == null) {
+      throw new Error(`Bucket name "${options.bucket}" includes a dot, but S3 region is missing`)
+    }
+
+    // special case, see http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro
+    if (options.region === "us-east-1") {
+      url = `https://s3.amazonaws.com/${options.bucket}`
     }
     else {
-      if (options.region == null) {
-        throw new Error(`Bucket name "${options.bucket}" includes a dot, but S3 region is missing`)
-      }
-
-      // special case, see http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro
-      url = options.region === "us-east-1"
-        ? `https://s3.amazonaws.com/${options.bucket}`
-        : `https://s3-${options.region}.amazonaws.com/${options.bucket}`
+      url = `https://s3-${options.region}.amazonaws.com/${options.bucket}`
     }
   }
+  else if (options.region === "cn-north-1") {
+    url = `https://${options.bucket}.s3.${options.region}.amazonaws.com.cn`
+  }
+  else {
+    url = `https://${options.bucket}.s3.amazonaws.com`
+  }
+  return appendPath(url, options.path)
+}
 
-  if (options.path != null) {
-    url += `/${options.path}`
+function appendPath(url: string, p: string | null | undefined): string {
+  if (p != null && p.length > 0) {
+    if (!p.startsWith("/")) {
+      url += "/"
+    }
+    url += p
   }
   return url
 }
@@ -253,12 +275,7 @@ function spacesUrl(options: SpacesOptions) {
   if (options.region == null) {
     throw new Error(`region is missing`)
   }
-
-  let url = `https://${options.name}.${options.region}.digitaloceanspaces.com`
-  if (options.path != null) {
-    url += `/${options.path}`
-  }
-  return url
+  return appendPath(`https://${options.name}.${options.region}.digitaloceanspaces.com`, options.path)
 }
 
 /**

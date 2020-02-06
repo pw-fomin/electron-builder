@@ -1,4 +1,3 @@
-import BluebirdPromise from "bluebird-lst"
 import { EventEmitter } from "events"
 
 export class CancellationToken extends EventEmitter {
@@ -44,11 +43,23 @@ export class CancellationToken extends EventEmitter {
 
   createPromise<R>(callback: (resolve: (thenableOrResult?: R) => void, reject: (error: Error) => void, onCancel: (callback: () => void) => void) => void): Promise<R> {
     if (this.cancelled) {
-      return BluebirdPromise.reject<R>(new CancellationError())
+      return Promise.reject<R>(new CancellationError())
+    }
+
+    const finallyHandler = () => {
+      if (cancelHandler != null) {
+        try {
+          this.removeListener("cancel", cancelHandler)
+          cancelHandler = null
+        }
+        catch (ignore) {
+          // ignore
+        }
+      }
     }
 
     let cancelHandler: (() => void) | null = null
-    return new BluebirdPromise<R>((resolve, reject) => {
+    return new Promise<R>((resolve, reject) => {
       let addedCancelHandler: (() => void) | null = null
 
       cancelHandler = () => {
@@ -74,11 +85,13 @@ export class CancellationToken extends EventEmitter {
         addedCancelHandler = callback
       })
     })
-      .finally(() => {
-        if (cancelHandler != null) {
-          this.removeListener("cancel", cancelHandler)
-          cancelHandler = null
-        }
+      .then(it => {
+        finallyHandler()
+        return it
+      })
+      .catch(e => {
+        finallyHandler()
+        throw e
       })
   }
 
@@ -103,6 +116,6 @@ export class CancellationToken extends EventEmitter {
 
 export class CancellationError extends Error {
   constructor() {
-    super("Cancelled")
+    super("cancelled")
   }
 }

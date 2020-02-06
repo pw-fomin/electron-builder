@@ -1,8 +1,9 @@
 import { Arch, build, PackagerOptions, Platform } from "electron-builder"
-import { move } from "fs-extra-p"
+import { promises as fs } from "fs"
 import * as path from "path"
 import { assertThat } from "./helpers/fileAssert"
 import { app, assertPack, linuxDirTarget, modifyPackageJson } from "./helpers/packTester"
+import { getElectronCacheDir } from "./helpers/testConfig"
 import { expectUpdateMetadata } from "./helpers/winHelper"
 
 function createBuildResourcesTest(packagerOptions: PackagerOptions) {
@@ -25,7 +26,7 @@ function createBuildResourcesTest(packagerOptions: PackagerOptions) {
     packed: async context => {
       await assertThat(path.join(context.projectDir, "customDist", "latest")).isDirectory()
     },
-    projectDirCreated: projectDir => move(path.join(projectDir, "build"), path.join(projectDir, "custom"))
+    projectDirCreated: projectDir => fs.rename(path.join(projectDir, "build"), path.join(projectDir, "custom"))
   })
 }
 
@@ -60,6 +61,22 @@ test.ifAll.ifLinuxOrDevMac("retrieve latest electron version", app({
   targets: linuxDirTarget,
 }, {
   projectDirCreated: projectDir => modifyPackageJson(projectDir, data => {
+    data.devDependencies = {
+      ...data.devDependencies,
+      electron: "latest",
+    }
+    delete data.build.electronVersion
+  }),
+}))
+
+test.ifAll.ifLinuxOrDevMac("retrieve latest electron-nightly version", app({
+  targets: linuxDirTarget,
+}, {
+  projectDirCreated: projectDir => modifyPackageJson(projectDir, data => {
+    data.devDependencies = {
+      ...data.devDependencies,
+      "electron-nightly": "latest",
+    }
     delete data.build.electronVersion
   }),
 }))
@@ -108,20 +125,22 @@ test.ifAll.ifDevOrWinCi("override targets in the config - only arch", app({
     },
   },
 }, {
-  packed: async context => {
-    await assertThat(path.join(context.projectDir, "dist", "win-unpacked")).doesNotExist()
-    await assertThat(path.join(context.projectDir, "dist", "latest.yml")).doesNotExist()
-    await expectUpdateMetadata(context, Arch.ia32)
+  packed: context => {
+    return Promise.all([
+      assertThat(path.join(context.projectDir, "dist", "win-unpacked")).doesNotExist(),
+      assertThat(path.join(context.projectDir, "dist", "latest.yml")).doesNotExist(),
+      expectUpdateMetadata(context, Arch.ia32),
+    ])
   },
 }))
 
 // test on all CI to check path separators
 test.ifAll("do not exclude build entirely (respect files)", () => assertPack("test-app-build-sub", {targets: linuxDirTarget}))
 
-test.ifAll("electronDist as path to local folder with electron builds zipped ", app({
+test.ifNotWindows("electronDist as path to local folder with electron builds zipped ", app({
   targets: linuxDirTarget,
   config: {
-    electronDist: require("env-paths")("electron", {suffix: ""}).cache,
+    electronDist: getElectronCacheDir(),
   },
 }))
 

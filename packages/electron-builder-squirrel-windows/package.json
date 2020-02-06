@@ -11,17 +11,17 @@
     "out"
   ],
   "dependencies": {
-    "builder-util": "^0.0.0-semantic-release",
-    "bluebird-lst": "^1.0.5",
-    "fs-extra-p": "^4.6.0",
-    "archiver": "^2.1.1",
-    "sanitize-filename": "^1.6.1"
+    "builder-util": "~0.0.0-semantic-release",
+    "bluebird-lst": "^1.0.9",
+    "fs-extra": "^8.1.0",
+    "archiver": "^3.1.1",
+    "sanitize-filename": "^1.6.3"
   },
   "optionalDependencies": {
-    "7zip-bin": "~3.1.0"
+    "7zip-bin": "~4.0.2"
   },
   "peerDependencies": {
-    "electron-builder-lib": "~0.0.0-semantic-release"
+    "app-builder-lib": "~0.0.0-semantic-release"
   },
   "types": "./out/SquirrelWindowsTarget.d.ts"
 }

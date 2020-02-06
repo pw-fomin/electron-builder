@@ -1,9 +1,9 @@
 import { copyOrLinkFile } from "builder-util/out/fs"
 import { createTargets, DIR_TARGET, Platform } from "electron-builder"
-import { readdir, readJson } from "fs-extra-p"
+import { promises as fs } from "fs"
 import * as path from "path"
 import { assertThat } from "../helpers/fileAssert"
-import { app, appThrows, assertPack, convertUpdateInfo, platform } from "../helpers/packTester"
+import { app, appThrows, assertPack, platform } from "../helpers/packTester"
 
 test.ifMac.ifAll("two-package", () => assertPack("test-app", {
   targets: createTargets([Platform.MAC], null, "all"),
@@ -21,7 +21,7 @@ test.ifMac.ifAll("two-package", () => assertPack("test-app", {
 }, {
   signed: true,
   checkMacApp: async appDir => {
-    expect((await readdir(path.join(appDir, "Contents", "Resources")))
+    expect((await fs.readdir(path.join(appDir, "Contents", "Resources")))
       .filter(it => !it.startsWith("."))
       .sort()).toMatchSnapshot()
   },
@@ -30,13 +30,15 @@ test.ifMac.ifAll("two-package", () => assertPack("test-app", {
 test.ifMac("one-package", app({
   targets: Platform.MAC.createTarget(),
   config: {
+    appId: "bar",
     publish: {
       provider: "generic",
       //tslint:disable-next-line:no-invalid-template-strings
       url: "https://develar.s3.amazonaws.com/test/${os}/${arch}",
     },
     mac: {
-      electronUpdaterCompatibility: ">=1.0.0",
+      // test appId per platform
+      appId: "foo",
       extendInfo: {
         LSUIElement: true,
       },
@@ -64,7 +66,7 @@ test.ifMac("one-package", app({
     }
   }
 }, {
-  signed: true,
+  signed: false,
   projectDirCreated: projectDir => Promise.all([
     copyOrLinkFile(path.join(projectDir, "build", "icon.icns"), path.join(projectDir, "build", "foo.icns")),
     copyOrLinkFile(path.join(projectDir, "build", "icon.icns"), path.join(projectDir, "build", "someFoo.icns")),
@@ -72,9 +74,6 @@ test.ifMac("one-package", app({
   checkMacApp: async (appDir, info) => {
     await assertThat(path.join(appDir, "Contents", "Resources", "foo.icns")).isFile()
     await assertThat(path.join(appDir, "Contents", "Resources", "someFoo.icns")).isFile()
-  },
-  packed: async context => {
-    expect(convertUpdateInfo(await readJson(path.join(context.outDir, "latest-mac.json")))).toMatchSnapshot()
   },
 }))
 

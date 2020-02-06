@@ -2,21 +2,21 @@
 
 import { exec, InvalidConfigurationError, log } from "builder-util"
 import chalk from "chalk"
-import { getElectronVersion } from "electron-builder-lib/out/electron/electronVersion"
-import { getGypEnv } from "electron-builder-lib/out/util/yarn"
-import { readJson } from "fs-extra-p"
+import { getElectronVersion } from "app-builder-lib/out/electron/electronVersion"
+import { getGypEnv } from "app-builder-lib/out/util/yarn"
+import { pathExists, readJson } from "fs-extra"
 import isCi from "is-ci"
 import * as path from "path"
 import { loadEnv } from "read-config-file"
 import updateNotifier from "update-notifier"
-import yargs from "yargs"
-import { build, configureBuildCommand } from "../builder"
+import { ExecError } from "builder-util/out/util"
+import { build, configureBuildCommand, createYargs } from "../builder"
 import { createSelfSignedCert } from "./create-self-signed-cert"
 import { configureInstallAppDepsCommand, installAppDeps } from "./install-app-deps"
 import { start } from "./start"
 
 // tslint:disable:no-unused-expression
-yargs
+createYargs()
   .command(["build", "*"], "Build", configureBuildCommand, wrap(build))
   .command("install-app-deps", "Install app deps", configureInstallAppDepsCommand, wrap(installAppDeps))
   .command("node-gyp-rebuild", "Rebuild own native code", configureInstallAppDepsCommand /* yes, args the same as for install app deps */, wrap(rebuildAppNativeCode))
@@ -45,8 +45,15 @@ function wrap(task: (args: any) => Promise<any>) {
     loadEnv(path.join(process.cwd(), "electron-builder.env"))
       .then(() => task(args))
       .catch(error => {
-        console.error(chalk.red(error instanceof InvalidConfigurationError ? error.message : (error.stack || error).toString()))
         process.exitCode = 1
+        // https://github.com/electron-userland/electron-builder/issues/2940
+        process.on("exit", () => process.exitCode = 1)
+        if (error instanceof InvalidConfigurationError) {
+          log.error(null, error.message)
+        }
+        else if (!(error instanceof ExecError) || !error.alreadyLogged) {
+          log.error({stackTrace: error.stack}, error.message)
+        }
       })
   }
 }
@@ -57,15 +64,17 @@ function checkIsOutdated() {
   }
 
   readJson(path.join(__dirname, "..", "..", "package.json"))
-    .then(it => {
+    .then(async it => {
       if (it.version === "0.0.0-semantic-release") {
         return
       }
 
+      const packageManager = await pathExists(path.join(__dirname, "..", "..", "package-lock.json")) ? "npm" : "yarn"
+
       const notifier = updateNotifier({pkg: it})
       if (notifier.update != null) {
         notifier.notify({
-          message: `Update available ${chalk.dim(notifier.update.current)}${chalk.reset(" → ")}${chalk.green(notifier.update.latest)} \nRun ${chalk.cyan("yarn upgrade electron-builder")} to update`
+          message: `Update available ${chalk.dim(notifier.update.current)}${chalk.reset(" → ")}${chalk.green(notifier.update.latest)} \nRun ${chalk.cyan(`${packageManager} upgrade electron-builder`)} to update`
         })
       }
     })

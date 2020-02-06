@@ -28,6 +28,8 @@ export interface BlockMapDataHolder {
    * The file checksum.
    */
   readonly sha512: string
+
+  readonly isAdminRightsRequired?: boolean
 }
 
 export interface PackageFileInfo extends BlockMapDataHolder {
@@ -68,7 +70,7 @@ export interface UpdateInfo {
   releaseDate: string
 
   /**
-   * The [staged rollout](auto-update.md#staged-rollouts) percentage, 0-100.
+   * The [staged rollout](/auto-update#staged-rollouts) percentage, 0-100.
    */
   readonly stagingPercentage?: number
 }

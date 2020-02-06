@@ -1,14 +1,14 @@
 import { exec, log } from "builder-util"
-import { PackageBuilder } from "builder-util/out/api"
-import { getLicenseFiles } from "builder-util/out/license"
-import { outputFile, readFile } from "fs-extra-p"
+import { PlatformPackager } from "app-builder-lib"
+import { getLicenseFiles } from "app-builder-lib/out/util/license"
+import { outputFile, readFile } from "fs-extra"
 import { serializeString } from "./dmgUtil"
 import { getLicenseButtons, getLicenseButtonsFile } from "./licenseButtons"
 
 // DropDMG/dmgbuild a in any case (even if no english, but only ru/de) set to 0 (en_US), well, without docs, just believe that's correct
 const DEFAULT_REGION_CODE = 0
 
-export async function addLicenseToDmg(packager: PackageBuilder, dmgPath: string): Promise<string | null> {
+export async function addLicenseToDmg(packager: PlatformPackager<any>, dmgPath: string): Promise<string | null> {
   // http://www.owsiak.org/?p=700
   const licenseFiles = await getLicenseFiles(packager)
   if (licenseFiles.length === 0) {
@@ -43,9 +43,7 @@ export async function addLicenseToDmg(packager: PackageBuilder, dmgPath: string)
     rtfs.push(data)
 
     defaultButtons.push(await getLicenseButtons(licenseButtonFiles, item.langWithRegion, counter, item.langName))
-
     addedRegionCodes.push(getRegionCode(item.langWithRegion))
-
     counter++
   }
 
@@ -96,7 +94,7 @@ function getRtfUnicodeEscapedString(text: string) {
       result += text[i]
     }
     else {
-      result += `\\u${text.codePointAt(i)}`
+      result += `\\u${text.codePointAt(i)}?`
     }
   }
   return result

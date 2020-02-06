@@ -7,11 +7,11 @@ export {
   LinuxConfiguration, DebOptions, CommonLinuxOptions, LinuxTargetSpecificOptions, AppImageOptions,
   Configuration, AfterPackContext, MetadataDirectories, Protocol, ReleaseInfo, ElectronDownloadOptions,
   SnapOptions, CommonWindowsInstallerConfiguration, FileAssociation, MsiOptions, AppXOptions, WindowsConfiguration,
-  Packager, BuildResult, PackagerOptions, ArtifactCreated,
+  Packager, BuildResult, PackagerOptions, ArtifactCreated, ArtifactBuildStarted,
   NsisOptions, NsisWebOptions, PortableOptions, CommonNsisOptions, SquirrelWindowsOptions,
   WindowsSignOptions, CustomWindowsSignTaskConfiguration, WindowsSignTaskConfiguration, CustomWindowsSign, FileCodeSigningInfo, CertificateFromStoreInfo,
   Metadata, AuthorMetadata, RepositoryInfo, AppInfo,
   UploadTask, PublishManager, PublishOptions, ProgressInfo
-} from "electron-builder-lib"
-export { buildForge, ForgeOptions } from "electron-builder-lib"
+} from "app-builder-lib"
+export { buildForge, ForgeOptions } from "app-builder-lib"
 export { CancellationToken } from "builder-util-runtime"

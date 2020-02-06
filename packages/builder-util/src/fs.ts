@@ -1,14 +1,21 @@
 import BluebirdPromise from "bluebird-lst"
-import { access, chmod, copyFile as _nodeCopyFile, createReadStream, createWriteStream, ensureDir, link, lstat, readdir, readlink, stat, Stats, symlink, unlink, writeFile } from "fs-extra-p"
+import { access, chmod, copyFile as _nodeCopyFile, ensureDir, link, lstat, readdir, readlink, stat, Stats, symlink, unlink, writeFile } from "fs-extra"
 import * as path from "path"
-import Mode from "stat-mode"
+import { Mode } from "stat-mode"
 import { log } from "./log"
-import { orNullIfFileNotExist } from "./promise"
+import { orIfFileNotExist, orNullIfFileNotExist } from "./promise"
 
 export const MAX_FILE_REQUESTS = 8
 export const CONCURRENCY = {concurrency: MAX_FILE_REQUESTS}
 
-export type FileTransformer = (path: string) => Promise<null | string | Buffer> | null | string | Buffer
+export type AfterCopyFileTransformer = (file: string) => Promise<void>
+
+export class CopyFileTransformer {
+  constructor(public readonly afterCopyTransformer: AfterCopyFileTransformer) {
+  }
+}
+
+export type FileTransformer = (file: string) => Promise<null | string | Buffer | CopyFileTransformer> | null | string | Buffer | CopyFileTransformer
 export type Filter = (file: string, stat: Stats) => boolean
 
 export function unlinkIfExists(file: string) {
@@ -58,7 +65,7 @@ export async function walk(initialDirPath: string, filter?: Filter | null, consu
       }
     }
 
-    const childNames = await readdir(dirPath)
+    const childNames = await orIfFileNotExist(readdir(dirPath), [])
     childNames.sort()
 
     let nodeModuleContent: Array<string> | null = null
@@ -143,7 +150,11 @@ export function copyFile(src: string, dest: string, isEnsureDir = true) {
  *
  * ensureDir is not called, dest parent dir must exists
  */
-export function copyOrLinkFile(src: string, dest: string, stats?: Stats | null, isUseHardLink = _isUseHardLink, exDevErrorHandler?: (() => boolean) | null): Promise<any> {
+export function copyOrLinkFile(src: string, dest: string, stats?: Stats | null, isUseHardLink?: boolean, exDevErrorHandler?: (() => boolean) | null): Promise<any> {
+  if (isUseHardLink === undefined) {
+    isUseHardLink = _isUseHardLink
+  }
+
   if (stats != null) {
     const originalModeNumber = stats.mode
     const mode = new Mode(stats)
@@ -154,6 +165,9 @@ export function copyOrLinkFile(src: string, dest: string, stats?: Stats | null, 
 
     mode.group.read = true
     mode.others.read = true
+
+    mode.setuid = false
+    mode.setgid = false
 
     if (originalModeNumber !== stats.mode) {
       if (log.isDebugEnabled) {
@@ -190,20 +204,6 @@ export function copyOrLinkFile(src: string, dest: string, stats?: Stats | null, 
 }
 
 function doCopyFile(src: string, dest: string, stats: Stats | null | undefined): Promise<any> {
-  if (_nodeCopyFile == null) {
-    return new BluebirdPromise((resolve, reject) => {
-      const reader = createReadStream(src)
-      const writer = createWriteStream(dest, stats == null ? undefined : {mode: stats!!.mode})
-      reader.on("error", reject)
-      writer.on("error", reject)
-      writer.on("open", () => {
-        reader.pipe(writer)
-      })
-      writer.once("close", resolve)
-    })
-  }
-
-  // node 8.5.0+
   const promise = _nodeCopyFile(src, dest)
   if (stats == null) {
     return promise
@@ -216,7 +216,7 @@ function doCopyFile(src: string, dest: string, stats: Stats | null | undefined):
 export class FileCopier {
   isUseHardLink: boolean
 
-  constructor(private readonly isUseHardLinkFunction?: (file: string) => boolean, private readonly transformer?: FileTransformer | null) {
+  constructor(private readonly isUseHardLinkFunction?: ((file: string) => boolean) | null, private readonly transformer?: FileTransformer | null) {
     if (isUseHardLinkFunction === USE_HARD_LINKS) {
       this.isUseHardLink = true
     }
@@ -226,20 +226,27 @@ export class FileCopier {
   }
 
   async copy(src: string, dest: string, stat: Stats | undefined) {
+    let afterCopyTransformer: AfterCopyFileTransformer | null = null
     if (this.transformer != null && stat != null && stat.isFile()) {
       let data = this.transformer(src)
       if (data != null) {
-        if (typeof (data as any).then === "function") {
+        if (typeof data === "object" && "then" in data) {
           data = await data
         }
 
         if (data != null) {
-          await writeFile(dest, data)
-          return
+          if (data instanceof CopyFileTransformer) {
+            afterCopyTransformer = data.afterCopyTransformer
+          }
+          else {
+            await writeFile(dest, data)
+            return
+          }
         }
       }
     }
-    const isUseHardLink = (!this.isUseHardLink || this.isUseHardLinkFunction == null) ? this.isUseHardLink : this.isUseHardLinkFunction(dest)
+
+    const isUseHardLink = afterCopyTransformer == null && ((!this.isUseHardLink || this.isUseHardLinkFunction == null) ? this.isUseHardLink : this.isUseHardLinkFunction(dest))
     await copyOrLinkFile(src, dest, stat, isUseHardLink, isUseHardLink ? () => {
       // files are copied concurrently, so, we must not check here currentIsUseHardLink — our code can be executed after that other handler will set currentIsUseHardLink to false
       if (this.isUseHardLink) {
@@ -250,13 +257,17 @@ export class FileCopier {
         return false
       }
     } : null)
+
+    if (afterCopyTransformer != null) {
+      await afterCopyTransformer(dest)
+    }
   }
 }
 
 export interface CopyDirOptions {
   filter?: Filter | null
   transformer?: FileTransformer | null
-  isUseHardLink?: (file: string) => boolean
+  isUseHardLink?: ((file: string) => boolean) | null
 }
 
 /**
