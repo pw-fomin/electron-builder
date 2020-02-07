@@ -55,11 +55,17 @@ function getLatestVersions(packageData: Array<any>) {
   })
 }
 
-function getCustomPasswareVersion(latestVersion: string, packageName: string): string | null {
-  if(['electron-updater', 'electron-builder', 'app-builder-lib'].includes(packageName)) {
-    return `${latestVersion}-passware`
+function getCustomPasswareVersion(versionInfo: any, packageName: string): string | null {
+  if (['electron-updater', 'electron-builder', 'app-builder-lib'].includes(packageName)) {
+    const latestVersion = versionInfo.next || versionInfo.latest;
+    const [, version, passwareRev] = latestVersion.split(/(.*)-passware.(.+)/)
+    if (passwareRev) {
+      const nextPasswareRev = String(Number(passwareRev) + 1)
+      return `${version}-passware.${nextPasswareRev}`;
+    }
+    return `${latestVersion}-passware.1`
   }
-  return latestVersion
+  return null
 }
 
 async function setPackageVersions(packageData: Array<any>) {
@@ -74,7 +80,7 @@ ln -f README.md packages/electron-builder/README.md
     const packageMetadata = packageData[i]
     const packageName = packageMetadata.name
     const versionInfo = versions[i]
-    const latestVersion = getCustomPasswareVersion(versionInfo.next || versionInfo.latest, packageName);
+    const latestVersion = getCustomPasswareVersion(versionInfo, packageName) || versionInfo.next || versionInfo.latest;
     if (latestVersion == null || packageMetadata.version === latestVersion || semver.lt(latestVersion, packageMetadata.version)) {
       continue
     }

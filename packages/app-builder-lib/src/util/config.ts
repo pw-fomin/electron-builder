@@ -235,7 +235,7 @@ export async function validateConfig(config: Configuration, debugLogger: DebugLo
 
       const site = "https://www.electron.build"
       let url = `${site}/configuration/configuration`
-      const targets = new Set(["mac", "dmg", "pkg", "mas", "win", "nsis", "appx", "linux", "appimage", "snap"])
+      const targets = new Set(["mac", "dmg", "pkg", "mas", "win", "wix", "nsis", "appx", "linux", "appimage", "snap"])
       const dataPath: string = error.dataPath == null ? null : error.dataPath
       const targetPath = dataPath.startsWith(".") ? dataPath.substr(1).toLowerCase() : null
       if (targetPath != null && targets.has(targetPath)) {
