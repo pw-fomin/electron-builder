@@ -2962,6 +2962,39 @@
       },
       "type": "object"
     },
+    "WixOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactName": {
+          "type": "string"
+        },
+        "candleFiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "candleFlags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lightFiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lightFlags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "NsisOptions": {
       "additionalProperties": false,
       "properties": {
@@ -5705,6 +5738,16 @@
       "anyOf": [
         {
           "$ref": "#/definitions/MsiOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wix": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/WixOptions"
         },
         {
           "type": "null"

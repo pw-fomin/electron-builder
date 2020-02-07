@@ -1,7 +1,7 @@
 import { Arch, deepAssign, serializeToYaml } from "builder-util"
 import uuid from "uuid/v1"
 import { getBinFromUrl } from "../binDownload"
-import { outputFile, writeFile } from "fs-extra-p"
+import { outputFile, writeFile } from "fs-extra"
 import * as path from "path"
 import * as fs from "fs"
 import * as crypto from "crypto"
