@@ -1,5 +1,6 @@
 import BluebirdPromise from "bluebird-lst"
-import { readJson, writeJson, readdir, stat, writeFile } from "fs-extra-p"
+import { readJson, writeJson } from "fs-extra"
+import { promises as fs } from "fs"
 import * as path from "path"
 import * as semver from "semver"
 
@@ -10,8 +11,8 @@ const rootDir = path.join(__dirname, "../../..")
 const packageDir = path.join(rootDir, "packages")
 
 async function readProjectMetadata(packageDir: string) {
-  const packageDirs = BluebirdPromise.filter((await readdir(packageDir)).filter(it => !it.includes(".")).sort(), it => {
-    return stat(path.join(packageDir, it, "package.json"))
+  const packageDirs = BluebirdPromise.filter((await fs.readdir(packageDir)).filter(it => !it.includes(".")).sort(), it => {
+    return fs.stat(path.join(packageDir, it, "package.json"))
       .then(it => it.isFile())
       .catch(() => false)
   })
@@ -47,14 +48,31 @@ function getLatestVersions(packageData: Array<any>) {
           throw new Error(`Cannot parse ${it}: ${e.stack || e}`)
         }
       })
+      .catch((e: any) => {
+        console.log(e)
+        return "0.0.1"
+      })
   })
+}
+
+function getCustomPasswareVersion(versionInfo: any, packageName: string): string | null {
+  if (['electron-updater', 'electron-builder', 'app-builder-lib'].includes(packageName)) {
+    const latestVersion = versionInfo.next || versionInfo.latest;
+    const [, version, passwareRev] = latestVersion.split(/(.*)-passware.(.+)/)
+    if (passwareRev) {
+      const nextPasswareRev = String(Number(passwareRev) + 1)
+      return `${version}-passware.${nextPasswareRev}`;
+    }
+    return `${latestVersion}-passware.1`
+  }
+  return null
 }
 
 async function setPackageVersions(packageData: Array<any>) {
   const versions = await getLatestVersions(packageData)
   let publishScript = `#!/usr/bin/env bash
 set -e
-  
+
 ln -f README.md packages/electron-builder/README.md
 `
 
@@ -62,7 +80,7 @@ ln -f README.md packages/electron-builder/README.md
     const packageMetadata = packageData[i]
     const packageName = packageMetadata.name
     const versionInfo = versions[i]
-    const latestVersion = versionInfo.next || versionInfo.latest
+    const latestVersion = getCustomPasswareVersion(versionInfo, packageName) || versionInfo.next || versionInfo.latest;
     if (latestVersion == null || packageMetadata.version === latestVersion || semver.lt(latestVersion, packageMetadata.version)) {
       continue
     }
@@ -81,7 +99,7 @@ ln -f README.md packages/electron-builder/README.md
     }
   }
 
-  await writeFile(path.join(rootDir, "__publish.sh"), publishScript)
+  await fs.writeFile(path.join(rootDir, "__publish.sh"), publishScript)
 }
 
 async function setDepVersions(packageData: Array<any>) {

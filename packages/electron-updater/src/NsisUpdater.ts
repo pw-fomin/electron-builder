@@ -1,34 +1,30 @@
-import { AllPublishOptions, CancellationToken, DownloadOptions, newError, PackageFileInfo, UpdateInfo } from "builder-util-runtime"
+import { AllPublishOptions, newError, PackageFileInfo, BlockMap, CURRENT_APP_PACKAGE_FILE_NAME, CURRENT_APP_INSTALLER_FILE_NAME } from "builder-util-runtime"
 import { spawn } from "child_process"
-import { OutgoingHttpHeaders } from "http"
 import * as path from "path"
-import "source-map-support/register"
-import { BaseUpdater } from "./BaseUpdater"
+import { AppAdapter } from "./AppAdapter"
+import { DownloadUpdateOptions } from "./AppUpdater"
+import { BaseUpdater, InstallOptions } from "./BaseUpdater"
 import { FileWithEmbeddedBlockMapDifferentialDownloader } from "./differentialDownloader/FileWithEmbeddedBlockMapDifferentialDownloader"
 import { GenericDifferentialDownloader } from "./differentialDownloader/GenericDifferentialDownloader"
 import { newUrlFromBase, ResolvedUpdateFileInfo } from "./main"
-import { findFile, Provider } from "./Provider"
-import { unlink } from "fs-extra-p"
+import { findFile, Provider } from "./providers/Provider"
+import { unlink } from "fs-extra"
 import { verifySignature } from "./windowsExecutableCodeSignatureVerifier"
+import { URL } from "url"
+
+let pako: any = null
 
 export class NsisUpdater extends BaseUpdater {
-  constructor(options?: AllPublishOptions | null, app?: any) {
+  constructor(options?: AllPublishOptions | null, app?: AppAdapter) {
     super(options, app)
   }
 
   /*** @private */
-  protected async doDownloadUpdate(updateInfo: UpdateInfo, cancellationToken: CancellationToken): Promise<Array<string>> {
-    const provider = await this.provider
-    let fileInfo = findFile(provider.resolveFiles(updateInfo), "exe")!!
+  protected doDownloadUpdate(downloadUpdateOptions: DownloadUpdateOptions): Promise<Array<string>> {
+    const provider = downloadUpdateOptions.updateInfoAndProvider.provider
+    let fileInfo = findFile(provider.resolveFiles(downloadUpdateOptions.updateInfoAndProvider.info), "exe")!!
     if (!fileInfo || !fileInfo.url.pathname.toLowerCase().endsWith("exe")) {
-      fileInfo = findFile(provider.resolveFiles(updateInfo), "msi")!!
-    }
-    const requestHeaders = await this.computeRequestHeaders()
-    const downloadOptions: DownloadOptions = {
-      skipDirCreation: true,
-      headers: requestHeaders,
-      cancellationToken,
-      sha512: fileInfo.info.sha512,
+      fileInfo = findFile(provider.resolveFiles(downloadUpdateOptions.updateInfoAndProvider.info), "msi")!!
     }
 
     let fileExtension = "exe"
@@ -36,37 +32,36 @@ export class NsisUpdater extends BaseUpdater {
       fileExtension = path.extname(fileInfo.url.pathname.toLowerCase()).replace(".", "")
     }
 
-    return await this.executeDownload({
+    return this.executeDownload({
       fileExtension,
-      downloadOptions,
+      downloadUpdateOptions,
       fileInfo,
-      updateInfo,
-      task: async (destinationFile, packageFile, removeTempDirIfAny) => {
-        if (await this.differentialDownloadInstaller(fileInfo, destinationFile, requestHeaders, provider)) {
-          await this.httpExecutor.download(fileInfo.url.href, destinationFile, downloadOptions)
+      task: async (destinationFile, downloadOptions, packageFile, removeTempDirIfAny) => {
+        const packageInfo = fileInfo.packageInfo
+        const isWebInstaller = packageInfo != null && packageFile != null
+        if (isWebInstaller || await this.differentialDownloadInstaller(fileInfo, downloadUpdateOptions, destinationFile, provider)) {
+          await this.httpExecutor.download(fileInfo.url, destinationFile, downloadOptions)
         }
 
         const signatureVerificationStatus = await this.verifySignature(destinationFile)
         if (signatureVerificationStatus != null) {
           await removeTempDirIfAny()
           // noinspection ThrowInsideFinallyBlockJS
-          throw newError(`New version ${updateInfo!.version} is not signed by the application owner: ${signatureVerificationStatus}`, "ERR_UPDATER_INVALID_SIGNATURE")
+          throw newError(`New version ${downloadUpdateOptions.updateInfoAndProvider.info.version} is not signed by the application owner: ${signatureVerificationStatus}`, "ERR_UPDATER_INVALID_SIGNATURE")
         }
 
-        const packageInfo = fileInfo.packageInfo
-        if (packageInfo != null && packageFile != null) {
-          if (await this.differentialDownloadWebPackage(packageInfo, packageFile, provider)) {
+        if (isWebInstaller) {
+          if (await this.differentialDownloadWebPackage(packageInfo!!, packageFile!!, provider)) {
             try {
-              await this.httpExecutor.download(packageInfo.path, packageFile, {
-                skipDirCreation: true,
-                headers: requestHeaders,
-                cancellationToken,
-                sha512: packageInfo.sha512,
+              await this.httpExecutor.download(new URL(packageInfo!!.path), packageFile!!, {
+                headers: downloadUpdateOptions.requestHeaders,
+                cancellationToken: downloadUpdateOptions.cancellationToken,
+                sha512: packageInfo!!.sha512,
               })
             }
             catch (e) {
               try {
-                await unlink(packageFile)
+                await unlink(packageFile!!)
               }
               catch (ignored) {
                 // ignore
@@ -101,81 +96,107 @@ export class NsisUpdater extends BaseUpdater {
     return await verifySignature(Array.isArray(publisherName) ? publisherName : [publisherName], tempUpdateFile, this._logger)
   }
 
-  protected doInstall(installerPath: string, isSilent: boolean, isForceRunAfter: boolean): boolean {
+  protected doInstall(options: InstallOptions): boolean {
     const args = ["--updated"]
-    if (isSilent) {
+    if (options.isSilent) {
       args.push("/S")
     }
 
-    if (isForceRunAfter) {
+    if (options.isForceRunAfter) {
       args.push("--force-run")
     }
 
-    const packagePath = this.downloadedUpdateHelper.packageFile
+    const packagePath = this.downloadedUpdateHelper == null ? null : this.downloadedUpdateHelper.packageFile
     if (packagePath != null) {
       // only = form is supported
-      args.push(`--package-file="${packagePath}"`)
+      args.push(`--package-file=${packagePath}`)
     }
 
-    const spawnOptions = {
-      detached: true,
-      stdio: "ignore",
+    let installerPath = options.installerPath;
+    let installerArgs = args;
+    if (installerPath.toLowerCase().endsWith('.msi')) {
+      installerPath = 'msiexec';
+      installerArgs = ["-i", options.installerPath];
     }
 
-    try {
-      if (installerPath.toLowerCase().endsWith('.msi')) {
-        spawn('msiexec', ["-i", installerPath], spawnOptions)
-          .unref()
-      } else {
-        spawn(installerPath, args, spawnOptions)
-          .unref()
-      }
+    const callUsingElevation = () => {
+      _spawn(path.join(process.resourcesPath!!, "elevate.exe"), [installerPath].concat(installerArgs))
+        .catch(e => this.dispatchError(e))
     }
-    catch (e) {
-      // yes, such errors dispatched not as error event
-      // https://github.com/electron-userland/electron-builder/issues/1129
-      if ((e as any).code === "UNKNOWN" || (e as any).code === "EACCES") { // Node 8 sends errors: https://nodejs.org/dist/latest-v8.x/docs/api/errors.html#errors_common_system_errors
-        this._logger.info("Access denied or UNKNOWN error code on spawn, will be executed again using elevate")
-        try {
-          spawn(path.join(process.resourcesPath!, "elevate.exe"), [installerPath].concat(args), spawnOptions)
-            .unref()
+
+    if (options.isAdminRightsRequired) {
+      this._logger.info("isAdminRightsRequired is set to true, run installer using elevate.exe")
+      callUsingElevation()
+      return true
+    }
+    _spawn(installerPath, installerArgs)
+      .catch((e: Error) => {
+        // https://github.com/electron-userland/electron-builder/issues/1129
+        // Node 8 sends errors: https://nodejs.org/dist/latest-v8.x/docs/api/errors.html#errors_common_system_errors
+        const errorCode = (e as NodeJS.ErrnoException).code
+        this._logger.info(`Cannot run installer: error code: ${errorCode}, error message: "${e.message}", will be executed again using elevate if EACCES"`)
+        if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
+          callUsingElevation()
         }
-        catch (e) {
+        else {
           this.dispatchError(e)
         }
-      }
-      else {
-        this.dispatchError(e)
-      }
-    }
-
+      })
     return true
   }
 
-  private async differentialDownloadInstaller(fileInfo: ResolvedUpdateFileInfo, installerPath: string, requestHeaders: OutgoingHttpHeaders, provider: Provider<any>) {
-    if (process.env.__NSIS_DIFFERENTIAL_UPDATE__ == null) {
-      return true
-    }
-
+  private async differentialDownloadInstaller(fileInfo: ResolvedUpdateFileInfo, downloadUpdateOptions: DownloadUpdateOptions, installerPath: string, provider: Provider<any>) {
     try {
-      const blockMapData = JSON.parse((await provider.httpRequest(newUrlFromBase(`${fileInfo.url.pathname}.blockMap.json`, fileInfo.url, true)))!!)
+      if (this._testOnlyOptions != null && !this._testOnlyOptions.isUseDifferentialDownload) {
+        return true
+      }
+
+      const newBlockMapUrl = newUrlFromBase(`${fileInfo.url.pathname}.blockmap`, fileInfo.url)
+      const oldBlockMapUrl = newUrlFromBase(`${fileInfo.url.pathname.replace(new RegExp(downloadUpdateOptions.updateInfoAndProvider.info.version, "g"), this.app.version)}.blockmap`, fileInfo.url)
+      this._logger.info(`Download block maps (old: "${oldBlockMapUrl.href}", new: ${newBlockMapUrl.href})`)
+
+      const downloadBlockMap = async (url: URL): Promise<BlockMap> => {
+        const data = await this.httpExecutor.downloadToBuffer(url, {
+          headers: downloadUpdateOptions.requestHeaders,
+          cancellationToken: downloadUpdateOptions.cancellationToken,
+        })
+
+        if (data == null || data.length === 0) {
+          throw new Error(`Blockmap "${url.href}" is empty`)
+        }
+
+        if (pako == null) {
+          pako = require("pako")
+        }
+
+        try {
+          return JSON.parse(pako.inflate(data, {to: "string"}))
+        }
+        catch (e) {
+          throw new Error(`Cannot parse blockmap "${url.href}", error: ${e}, raw data: ${data}`)
+        }
+      }
+
+      const blockMapDataList = await Promise.all([downloadBlockMap(oldBlockMapUrl), downloadBlockMap(newBlockMapUrl)])
       await new GenericDifferentialDownloader(fileInfo.info, this.httpExecutor, {
-        newUrl: fileInfo.url.href,
-        oldFile: path.join(this.app.getPath("userData"), "installer.exe"),
+        newUrl: fileInfo.url,
+        oldFile: path.join(this.downloadedUpdateHelper!!.cacheDir, CURRENT_APP_INSTALLER_FILE_NAME),
         logger: this._logger,
         newFile: installerPath,
-        useMultipleRangeRequest: provider.useMultipleRangeRequest,
-        requestHeaders,
+        isUseMultipleRangeRequest: provider.isUseMultipleRangeRequest,
+        requestHeaders: downloadUpdateOptions.requestHeaders,
       })
-        .download(blockMapData)
+        .download(blockMapDataList[0], blockMapDataList[1])
+      return false
     }
     catch (e) {
       this._logger.error(`Cannot download differentially, fallback to full download: ${e.stack || e}`)
-      // during test (developer machine mac) we must throw error
-      return process.platform === "win32"
+      if (this._testOnlyOptions != null) {
+        // test mode
+        throw e
+      }
+      return true
     }
-
-    return false
   }
 
   private async differentialDownloadWebPackage(packageInfo: PackageFileInfo, packagePath: string, provider: Provider<any>): Promise<boolean> {
@@ -185,12 +206,12 @@ export class NsisUpdater extends BaseUpdater {
 
     try {
       await new FileWithEmbeddedBlockMapDifferentialDownloader(packageInfo, this.httpExecutor, {
-        newUrl: packageInfo.path,
-        oldFile: path.join(process.resourcesPath!, "..", "package.7z"),
+        newUrl: new URL(packageInfo.path),
+        oldFile: path.join(this.downloadedUpdateHelper!!.cacheDir, CURRENT_APP_PACKAGE_FILE_NAME),
         logger: this._logger,
         newFile: packagePath,
         requestHeaders: this.requestHeaders,
-        useMultipleRangeRequest: provider.useMultipleRangeRequest,
+        isUseMultipleRangeRequest: provider.isUseMultipleRangeRequest,
       })
         .download()
     }
@@ -201,4 +222,31 @@ export class NsisUpdater extends BaseUpdater {
     }
     return false
   }
+}
+
+/**
+ * This handles both node 8 and node 10 way of emitting error when spawning a process
+ *   - node 8: Throws the error
+ *   - node 10: Emit the error(Need to listen with on)
+ */
+async function _spawn(exe: string, args: Array<string>) {
+  return new Promise((resolve, reject) => {
+    try {
+      const process = spawn(exe, args, {
+        detached: true,
+        stdio: "ignore",
+      })
+      process.on("error", error => {
+        reject(error)
+      })
+      process.unref()
+
+      if (process.pid !== undefined) {
+        resolve(true)
+      }
+    }
+    catch (error) {
+      reject(error)
+    }
+  })
 }

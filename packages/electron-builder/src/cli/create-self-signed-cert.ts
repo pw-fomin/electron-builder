@@ -1,8 +1,8 @@
 import { exec, log, spawn, TmpDir } from "builder-util"
 import { unlinkIfExists } from "builder-util/out/fs"
 import chalk from "chalk"
-import { getSignVendorPath } from "electron-builder-lib/out/windowsCodeSign"
-import { ensureDir } from "fs-extra-p"
+import { getSignVendorPath } from "app-builder-lib/out/codeSign/windowsCodeSign"
+import { ensureDir } from "fs-extra"
 import * as path from "path"
 import sanitizeFileName from "sanitize-filename"
 

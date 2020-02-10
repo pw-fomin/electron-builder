@@ -8,12 +8,11 @@
   ],
   "bin": {
     "electron-builder": "./out/cli/cli.js",
-    "build": "./out/cli/cli.js",
     "install-app-deps": "./out/cli/install-app-deps.js"
   },
   "repository": "electron-userland/electron-builder",
   "engines": {
-    "node": ">=6.11.4"
+    "node": ">=8.12.0"
   },
   "keywords": [
     "electron",
@@ -46,26 +45,23 @@
   "bugs": "https://github.com/electron-userland/electron-builder/issues",
   "homepage": "https://github.com/electron-userland/electron-builder",
   "dependencies": {
-    "bluebird-lst": "^1.0.5",
-    "chalk": "^2.4.1",
+    "@types/yargs": "^15.0.1",
+    "bluebird-lst": "^1.0.9",
+    "chalk": "^3.0.0",
     "builder-util-runtime": "0.0.0-semantic-release",
     "builder-util": "0.0.0-semantic-release",
-    "fs-extra-p": "^4.6.0",
-    "is-ci": "^1.1.0",
-    "read-config-file": "3.0.1",
-    "sanitize-filename": "^1.6.1",
-    "update-notifier": "^2.5.0",
-    "yargs": "^11.0.0",
-    "lazy-val": "^1.0.3",
-    "electron-builder-lib": "0.0.0-semantic-release",
-    "electron-download-tf": "4.3.4",
+    "fs-extra": "^8.1.0",
+    "is-ci": "^2.0.0",
+    "read-config-file": "5.0.1",
+    "sanitize-filename": "^1.6.3",
+    "update-notifier": "^4.0.0",
+    "yargs": "^15.1.0",
+    "lazy-val": "^1.0.4",
+    "app-builder-lib": "0.0.0-semantic-release",
     "dmg-builder": "0.0.0-semantic-release"
   },
   "typings": "./out/index.d.ts",
   "publishConfig": {
     "tag": "next"
-  },
-  "yargs": {
-    "camel-case-expansion": false
   }
 }

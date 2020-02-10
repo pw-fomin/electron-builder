@@ -1,6 +1,6 @@
 const BluebirdPromise = require("bluebird-lst")
 const path = require("path")
-const fs = require("fs-extra-p")
+const fs = require("fs-extra")
 
 async function main() {
   const rootDeps = (await fs.readJson(path.join(__dirname, "..", "package.json"))).dependencies
@@ -18,7 +18,7 @@ async function main() {
 
     let changed = false
     for (const name of Object.keys(deps)) {
-      if (name.startsWith("electron-builder-") || name === "electron-publish" || name.endsWith("-builder") || name.startsWith("builder-")) {
+      if (name.startsWith("electron-builder-") || name === "electron-publish" || name.endsWith("-builder") || name.startsWith("builder-") || name === "app-builder-lib") {
         continue
       }
 
@@ -34,7 +34,7 @@ async function main() {
       }
     }
 
-    if (changed) {
+    if (changed && Object.keys(packageData).length !== 0) {
       return await fs.writeJson(packageFile, packageData, {spaces: 2})
     }
   })

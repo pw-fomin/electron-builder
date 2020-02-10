@@ -1,7 +1,7 @@
-import { InvalidConfigurationError, log } from "builder-util"
-import { getBinFromGithub } from "builder-util/out/binDownload"
-import { Arch, getArchSuffix, SquirrelWindowsOptions, Target } from "electron-builder-lib"
-import { WinPackager } from "electron-builder-lib/out/winPackager"
+import { InvalidConfigurationError, log, isEmptyOrSpaces } from "builder-util"
+import { getBinFromUrl } from "app-builder-lib/out/binDownload"
+import { Arch, getArchSuffix, SquirrelWindowsOptions, Target } from "app-builder-lib"
+import { WinPackager } from "app-builder-lib/out/winPackager"
 import * as path from "path"
 import sanitizeFileName from "sanitize-filename"
 import { convertVersion, SquirrelBuilder, SquirrelOptions } from "./squirrelPack"
@@ -24,10 +24,14 @@ export default class SquirrelWindowsTarget extends Target {
     const packageFile = `${sanitizedName}-${convertVersion(version)}-full.nupkg`
 
     const installerOutDir = path.join(this.outDir, `squirrel-windows${getArchSuffix(arch)}`)
-
     const artifactPath = path.join(installerOutDir, setupFile)
 
-    this.logBuilding("Squirrel.Windows", artifactPath, arch)
+    await packager.info.callArtifactBuildStarted({
+      targetPresentableName: "Squirrel.Windows",
+      file: artifactPath,
+      arch,
+    })
+
     if (arch === Arch.ia32) {
       log.warn("For windows consider only distributing 64-bit or use nsis target, see https://github.com/electron-userland/electron-builder/issues/359#issuecomment-214851130")
     }
@@ -36,15 +40,36 @@ export default class SquirrelWindowsTarget extends Target {
     const squirrelBuilder = new SquirrelBuilder(distOptions as SquirrelOptions, installerOutDir, packager)
     await squirrelBuilder.buildInstaller({setupFile, packageFile}, appOutDir, this.outDir, arch)
 
-    packager.dispatchArtifactCreated(artifactPath, this, arch, `${sanitizedName}-Setup-${version}${getArchSuffix(arch)}.exe`)
+    await packager.info.callArtifactBuildCompleted({
+      file: artifactPath,
+      target: this,
+      arch,
+      safeArtifactName: `${sanitizedName}-Setup-${version}${getArchSuffix(arch)}.exe`,
+      packager: this.packager,
+    })
 
     const packagePrefix = `${this.appName}-${convertVersion(version)}-`
-    packager.dispatchArtifactCreated(path.join(installerOutDir, `${packagePrefix}full.nupkg`), this, arch)
+    packager.info.dispatchArtifactCreated({
+      file: path.join(installerOutDir, `${packagePrefix}full.nupkg`),
+      target: this,
+      arch,
+      packager,
+    })
     if (distOptions.remoteReleases != null) {
-      packager.dispatchArtifactCreated(path.join(installerOutDir, `${packagePrefix}delta.nupkg`), this, arch)
+      packager.info.dispatchArtifactCreated({
+        file: path.join(installerOutDir, `${packagePrefix}delta.nupkg`),
+        target: this,
+        arch,
+        packager,
+      })
     }
 
-    packager.dispatchArtifactCreated(path.join(installerOutDir, "RELEASES"), this, arch)
+    packager.info.dispatchArtifactCreated({
+      file: path.join(installerOutDir, "RELEASES"),
+      target: this,
+      arch,
+      packager,
+    })
   }
 
   private get appName() {
@@ -61,7 +86,7 @@ export default class SquirrelWindowsTarget extends Target {
       }
 
       if (iconUrl == null) {
-        throw new InvalidConfigurationError("iconUrl is not specified, please see https://electron.build/configuration/configuration#WinBuildOptions-iconUrl")
+        throw new InvalidConfigurationError("squirrelWindows.iconUrl is not specified, please see https://www.electron.build/configuration/squirrel-windows#SquirrelWindowsOptions-iconUrl")
       }
     }
 
@@ -82,8 +107,12 @@ export default class SquirrelWindowsTarget extends Target {
       extraMetadataSpecs: projectUrl == null ? null : `\n    <projectUrl>${projectUrl}</projectUrl>`,
       copyright: appInfo.copyright,
       packageCompressionLevel: parseInt((process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || packager.compression === "store" ? 0 : 9) as any, 10),
-      vendorPath: await getBinFromGithub("Squirrel.Windows", "1.7.8", "p4Z7//ol4qih1xIl2l9lOeFf1RmX4y1eAJkol+3q7iZ0iEMotBhs3HXFLxU435xLRhKghYOjSYu7WiUktsP5Bg=="),
+      vendorPath: await getBinFromUrl("Squirrel.Windows", "1.9.0", "zJHk4CMATM7jHJ2ojRH1n3LkOnaIezDk5FAzJmlSEQSiEdRuB4GGLCegLDtsRCakfHIVfKh3ysJHLjynPkXwhQ=="),
       ...this.options as any,
+    }
+
+    if (isEmptyOrSpaces(options.description)) {
+      options.description = options.productName
     }
 
     if (options.remoteToken == null) {

@@ -1,5 +1,5 @@
 import { createHash } from "crypto"
-import { emptyDir, readJson, remove } from "fs-extra-p"
+import { emptyDir, readJson, realpathSync, remove } from "fs-extra"
 import isCi from "is-ci"
 import { tmpdir } from "os"
 import * as path from "path"
@@ -7,12 +7,11 @@ import { deleteOldElectronVersion, downloadAllRequiredElectronVersions } from ".
 
 const rootDir = path.join(__dirname, "../../..")
 
-// we set NODE_PATH in this file, so, we cannot use 'out/util' path here
 const util = require(`${rootDir}/packages/builder-util/out/util`)
 const isEmptyOrSpaces = util.isEmptyOrSpaces
 
-const baseDir = process.env.ELECTRON_BUILDER_TMP_DIR || (process.platform === "darwin" && !require("is-ci") ? "/tmp" : tmpdir())
-const TEST_TMP_DIR = path.join(baseDir, `et-${createHash("md5").update(__dirname).digest("hex")}`)
+const baseDir = process.env.APP_BUILDER_TMP_DIR || realpathSync(tmpdir())
+const APP_BUILDER_TMP_DIR = path.join(baseDir, `et-${createHash("md5").update(__dirname).digest("hex")}`)
 
 runTests()
   .catch(error => {
@@ -24,13 +23,13 @@ async function runTests() {
   process.env.BABEL_JEST_SKIP = "true"
 
   if (process.env.CIRCLECI) {
-    await emptyDir(TEST_TMP_DIR)
+    await emptyDir(APP_BUILDER_TMP_DIR)
   }
   else {
     await Promise.all([
       deleteOldElectronVersion(),
       downloadAllRequiredElectronVersions(),
-      emptyDir(TEST_TMP_DIR),
+      emptyDir(APP_BUILDER_TMP_DIR),
     ])
   }
 
@@ -54,6 +53,7 @@ async function runTests() {
       testPatterns.push("extraMetadataTest")
       testPatterns.push("HoistedNodeModuleTest")
       testPatterns.push("configurationValidationTest")
+      testPatterns.push("webInstallerTest")
     }
     else if (circleNodeIndex === 1) {
       testPatterns.push("oneClickInstallerTest")
@@ -62,26 +62,26 @@ async function runTests() {
       testPatterns.push("snapTest")
       testPatterns.push("macPackagerTest")
       testPatterns.push("linuxPackagerTest")
-    }
-    else {
-      testPatterns.push("PublishManagerTest")
-      testPatterns.push("portableTest")
-      testPatterns.push("BuildTest")
-      testPatterns.push("assistedInstallerTest")
-      testPatterns.push("linuxArchiveTest")
-      testPatterns.push("filesTest")
-      testPatterns.push("globTest")
-      testPatterns.push("webInstallerTest")
       testPatterns.push("msiTest")
       testPatterns.push("ignoreTest")
       testPatterns.push("mainEntryTest")
       testPatterns.push("ArtifactPublisherTest")
       testPatterns.push("RepoSlugTest")
+      testPatterns.push("portableTest")
+      testPatterns.push("globTest")
+      testPatterns.push("BuildTest")
+      testPatterns.push("linuxArchiveTest")
+    }
+    else {
+      testPatterns.push("PublishManagerTest")
+      testPatterns.push("assistedInstallerTest")
+      testPatterns.push("filesTest")
+      testPatterns.push("protonTest")
     }
     console.log(`Test files for node ${circleNodeIndex}: ${testPatterns.join(", ")}`)
   }
 
-  process.env.TEST_TMP_DIR = TEST_TMP_DIR
+  process.env.APP_BUILDER_TMP_DIR = APP_BUILDER_TMP_DIR
 
   const rootDir = path.join(__dirname, "..", "..", "..")
 
@@ -121,16 +121,12 @@ async function runTests() {
       else if (scriptArg.startsWith("skip")) {
         if (!isCi) {
           const suffix = scriptArg.substring("skip".length)
-          switch (scriptArg) {
-            case "skipArtifactPublisher": {
-              testPathIgnorePatterns.push("[\\/]{1}ArtifactPublisherTest.js$")
-              config.cacheDirectory += `-${suffix}`
-            }
-              // noinspection TsLint
-              break
-
-            default:
-              throw new Error(`Unknown opt ${scriptArg}`)
+          if (scriptArg === "skipArtifactPublisher") {
+            testPathIgnorePatterns.push("[\\/]{1}ArtifactPublisherTest.js$")
+            config.cacheDirectory += `-${suffix}`
+          }
+          else {
+            throw new Error(`Unknown opt ${scriptArg}`)
           }
         }
       }
@@ -153,18 +149,18 @@ async function runTests() {
       .map(it => it.endsWith(".js") || it.endsWith("*") ? it : `${it}\\.js$`)
   }
   if (process.env.CIRCLECI != null || process.env.TEST_JUNIT_REPORT === "true") {
-    jestOptions.testResultsProcessor = "jest-junit"
+    jestOptions.reporters = ["default", "jest-junit"]
   }
 
   // console.log(JSON.stringify(jestOptions, null, 2))
 
-  const testResult = await require("jest-cli").runCLI(jestOptions, jestOptions.projects)
+  const testResult = await require("@jest/core").runCLI(jestOptions, jestOptions.projects)
   const exitCode = testResult.results == null || testResult.results.success ? 0 : testResult.globalConfig.testFailureExitCode
   if (isCi) {
     process.exit(exitCode)
   }
 
-  await remove(TEST_TMP_DIR)
+  await remove(APP_BUILDER_TMP_DIR)
   process.exitCode = exitCode
   if (testResult.globalConfig.forceExit) {
     process.exit(exitCode)

@@ -1,13 +1,13 @@
 import { log } from "builder-util"
-import { PackageBuilder } from "builder-util/out/api"
-import { getLicenseAssets } from "builder-util/out/license"
-import { readFile } from "fs-extra-p"
+import { PlatformPackager } from "app-builder-lib"
+import { getLicenseAssets } from "app-builder-lib/out/util/license"
+import { readFile } from "fs-extra"
 import * as iconv from "iconv-lite"
 import { safeLoad } from "js-yaml"
 import { serializeString } from "./dmgUtil"
 import { getDefaultButtons } from "./licenseDefaultButtons"
 
-export async function getLicenseButtonsFile(packager: PackageBuilder): Promise<Array<LicenseButtonsFile>> {
+export async function getLicenseButtonsFile(packager: PlatformPackager<any>): Promise<Array<LicenseButtonsFile>> {
   return getLicenseAssets((await packager.resourceList)
     .filter(it => {
       const name = it.toLowerCase()

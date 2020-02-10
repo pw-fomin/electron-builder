@@ -14,7 +14,6 @@ Object {
 
 exports[`empty installLocation 2`] = `
 Object {
-  "AsarIntegrity": "{\\"checksums\\":{\\"app.asar\\":\\"YYJnZcKYR79+/Un7xZ0fFqTRc7j3NvRfNDY1B1sLXGzBBvOPpir176RAxfQjNYXVwWGHSuXWpSrh5e1lEsamuA==\\",\\"electron.asar\\":\\"ksFqQ3X5rccdlVaj4tOiH6w3EuU2r0+74T+bQ+jo2tynH+7xSMMPv5tfF5ATKsBaDNOQPZtxMsFwjBuUI8XgSw==\\"}}",
   "CFBundleDisplayName": "Test App ßW",
   "CFBundleExecutable": "Test App ßW",
   "CFBundleIconFile": "Test App ßW.icns",
@@ -23,18 +22,104 @@ Object {
   "CFBundleName": "Test App ßW",
   "CFBundlePackageType": "APPL",
   "CFBundleShortVersionString": "1.1.0",
-  "DTSDKBuild": "14D125",
-  "DTSDKName": "macosx10.1010.10",
   "LSApplicationCategoryType": "your.app.category.type",
-  "LSMinimumSystemVersion": "10.9.0",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
   "NSHighResolutionCapable": true,
-  "NSMainNibFile": "MainMenu",
   "NSPrincipalClass": "AtomApplication",
   "NSSupportsAutomaticGraphicsSwitching": true,
 }
 `;
 
-exports[`invalid target 1`] = `"ERR_CONFIG_INVALID"`;
+exports[`extraDistFiles 1`] = `
+Object {
+  "mac": Array [
+    Object {
+      "arch": "x64",
+      "file": "Test App ßW-1.1.0-mac.zip",
+      "safeArtifactName": "TestApp-1.1.0-mac.zip",
+      "updateInfo": Object {
+        "blockMapSize": "@blockMapSize",
+        "sha512": "@sha512",
+        "size": "@size",
+      },
+    },
+  ],
+}
+`;
+
+exports[`extraDistFiles 2`] = `
+Object {
+  "CFBundleDisplayName": "Test App ßW",
+  "CFBundleExecutable": "Test App ßW",
+  "CFBundleIconFile": "Test App ßW.icns",
+  "CFBundleIdentifier": "org.electron-builder.testApp",
+  "CFBundleInfoDictionaryVersion": "6.0",
+  "CFBundleName": "Test App ßW",
+  "CFBundlePackageType": "APPL",
+  "CFBundleShortVersionString": "1.1.0",
+  "LSApplicationCategoryType": "your.app.category.type",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
+  "NSHighResolutionCapable": true,
+  "NSPrincipalClass": "AtomApplication",
+  "NSSupportsAutomaticGraphicsSwitching": true,
+}
+`;
+
+exports[`invalid target 1`] = `
+"Invalid configuration object. electron-builder 0.0.0-semantic-release has been initialised using a configuration object that does not match the API schema.
+ - configuration.mac should be one of these:
+   object { appId?, artifactName?, asar?, asarUnpack?, binaries?, bundleShortVersion?, bundleVersion?, category?, compression?, cscInstallerKeyPassword?, cscInstallerLink?, cscKeyPassword?, cscLink?, darkModeSupport?, detectUpdateChannel?, electronLanguages?, electronUpdaterCompatibility?, entitlements?, entitlementsInherit?, extendInfo?, extraDistFiles?, extraFiles?, extraResources?, fileAssociations?, files?, forceCodeSigning?, gatekeeperAssess?, generateUpdatesFilesForAllChannels?, hardenedRuntime?, helperBundleId?, icon?, identity?, minimumSystemVersion?, protocols?, provisioningProfile?, publish?, releaseInfo?, requirements?, target?, type? } | null
+   -> Options related to how build macOS targets.
+   Details:
+    * configuration.mac.target[0] should be an object:
+      object { target, arch? }
+    * configuration.mac.target[0] should be one of these:
+      \\"7z\\" | \\"default\\" | \\"dir\\" | \\"dmg\\" | \\"mas\\" | \\"mas-dev\\" | \\"pkg\\" | \\"tar.bz2\\" | \\"tar.gz\\" | \\"tar.lz\\" | \\"tar.xz\\" | \\"zip\\"
+    * configuration.mac.target[0] should be one of these:
+      object { target, arch? } | \\"7z\\" | \\"default\\" | \\"dir\\" | \\"dmg\\" | \\"mas\\" | \\"mas-dev\\" | \\"pkg\\" | \\"tar.bz2\\" | \\"tar.gz\\" | \\"tar.lz\\" | \\"tar.xz\\" | \\"zip\\"
+     How to fix:
+     1. Open https://www.electron.build/configuration/mac
+     2. Search the option name on the page (or type in into Search to find across the docs).
+       * Not found? The option was deprecated or not exists (check spelling).
+       * Found? Check that the option in the appropriate place. e.g. \\"title\\" only in the \\"dmg\\", not in the root.
+"
+`;
 
 exports[`only zip 1`] = `
 Object {
@@ -43,6 +128,11 @@ Object {
       "arch": "x64",
       "file": "Test App ßW-1.1.0-mac.zip",
       "safeArtifactName": "TestApp-1.1.0-mac.zip",
+      "updateInfo": Object {
+        "blockMapSize": "@blockMapSize",
+        "sha512": "@sha512",
+        "size": "@size",
+      },
     },
   ],
 }
@@ -50,7 +140,6 @@ Object {
 
 exports[`only zip 2`] = `
 Object {
-  "AsarIntegrity": "{\\"checksums\\":{\\"app.asar\\":\\"jdsit4e4hjZ9aecrwjMGAzDfeiVsgi87181wRZFHzgCNdhOFZLQBiEEkRvLm5GqqdG7Ar4DWS28Td17EnL9prg==\\",\\"electron.asar\\":\\"ksFqQ3X5rccdlVaj4tOiH6w3EuU2r0+74T+bQ+jo2tynH+7xSMMPv5tfF5ATKsBaDNOQPZtxMsFwjBuUI8XgSw==\\"}}",
   "CFBundleDisplayName": "Test App ßW",
   "CFBundleExecutable": "Test App ßW",
   "CFBundleIconFile": "Test App ßW.icns",
@@ -59,12 +148,27 @@ Object {
   "CFBundleName": "Test App ßW",
   "CFBundlePackageType": "APPL",
   "CFBundleShortVersionString": "1.1.0",
-  "DTSDKBuild": "14D125",
-  "DTSDKName": "macosx10.1010.10",
   "LSApplicationCategoryType": "your.app.category.type",
-  "LSMinimumSystemVersion": "10.9.0",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
   "NSHighResolutionCapable": true,
-  "NSMainNibFile": "MainMenu",
   "NSPrincipalClass": "AtomApplication",
   "NSSupportsAutomaticGraphicsSwitching": true,
 }
@@ -84,7 +188,6 @@ Object {
 
 exports[`pkg 2`] = `
 Object {
-  "AsarIntegrity": "{\\"checksums\\":{\\"app.asar\\":\\"jdsit4e4hjZ9aecrwjMGAzDfeiVsgi87181wRZFHzgCNdhOFZLQBiEEkRvLm5GqqdG7Ar4DWS28Td17EnL9prg==\\",\\"electron.asar\\":\\"ksFqQ3X5rccdlVaj4tOiH6w3EuU2r0+74T+bQ+jo2tynH+7xSMMPv5tfF5ATKsBaDNOQPZtxMsFwjBuUI8XgSw==\\"}}",
   "CFBundleDisplayName": "Test App ßW",
   "CFBundleExecutable": "Test App ßW",
   "CFBundleIconFile": "Test App ßW.icns",
@@ -93,12 +196,75 @@ Object {
   "CFBundleName": "Test App ßW",
   "CFBundlePackageType": "APPL",
   "CFBundleShortVersionString": "1.1.0",
-  "DTSDKBuild": "14D125",
-  "DTSDKName": "macosx10.1010.10",
   "LSApplicationCategoryType": "your.app.category.type",
-  "LSMinimumSystemVersion": "10.9.0",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
   "NSHighResolutionCapable": true,
-  "NSMainNibFile": "MainMenu",
+  "NSPrincipalClass": "AtomApplication",
+  "NSSupportsAutomaticGraphicsSwitching": true,
+}
+`;
+
+exports[`pkg extended configuration 1`] = `
+Object {
+  "mac": Array [
+    Object {
+      "arch": "x64",
+      "file": "Test App ßW-1.1.0.pkg",
+      "safeArtifactName": "TestApp-1.1.0.pkg",
+    },
+  ],
+}
+`;
+
+exports[`pkg extended configuration 2`] = `
+Object {
+  "CFBundleDisplayName": "Test App ßW",
+  "CFBundleExecutable": "Test App ßW",
+  "CFBundleIconFile": "Test App ßW.icns",
+  "CFBundleIdentifier": "org.electron-builder.testApp",
+  "CFBundleInfoDictionaryVersion": "6.0",
+  "CFBundleName": "Test App ßW",
+  "CFBundlePackageType": "APPL",
+  "CFBundleShortVersionString": "1.1.0",
+  "LSApplicationCategoryType": "your.app.category.type",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
+  "NSHighResolutionCapable": true,
   "NSPrincipalClass": "AtomApplication",
   "NSSupportsAutomaticGraphicsSwitching": true,
 }
@@ -118,7 +284,6 @@ Object {
 
 exports[`pkg scripts 2`] = `
 Object {
-  "AsarIntegrity": "{\\"checksums\\":{\\"app.asar\\":\\"YYJnZcKYR79+/Un7xZ0fFqTRc7j3NvRfNDY1B1sLXGzBBvOPpir176RAxfQjNYXVwWGHSuXWpSrh5e1lEsamuA==\\",\\"electron.asar\\":\\"ksFqQ3X5rccdlVaj4tOiH6w3EuU2r0+74T+bQ+jo2tynH+7xSMMPv5tfF5ATKsBaDNOQPZtxMsFwjBuUI8XgSw==\\"}}",
   "CFBundleDisplayName": "Test App ßW",
   "CFBundleExecutable": "Test App ßW",
   "CFBundleIconFile": "Test App ßW.icns",
@@ -127,12 +292,27 @@ Object {
   "CFBundleName": "Test App ßW",
   "CFBundlePackageType": "APPL",
   "CFBundleShortVersionString": "1.1.0",
-  "DTSDKBuild": "14D125",
-  "DTSDKName": "macosx10.1010.10",
   "LSApplicationCategoryType": "your.app.category.type",
-  "LSMinimumSystemVersion": "10.9.0",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
   "NSHighResolutionCapable": true,
-  "NSMainNibFile": "MainMenu",
   "NSPrincipalClass": "AtomApplication",
   "NSSupportsAutomaticGraphicsSwitching": true,
 }
@@ -151,8 +331,9 @@ Array [
   "Test App ßW.app/Contents/Frameworks/Mantle.framework",
   "Test App ßW.app/Contents/Frameworks/ReactiveCocoa.framework",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app",
   "Test App ßW.app/Contents/MacOS/Test App ßW",
   "Test App ßW.app/Contents/Resources/am.lproj",
@@ -165,7 +346,6 @@ Array [
   "Test App ßW.app/Contents/Resources/da.lproj",
   "Test App ßW.app/Contents/Resources/de.lproj",
   "Test App ßW.app/Contents/Resources/el.lproj",
-  "Test App ßW.app/Contents/Resources/electron.asar",
   "Test App ßW.app/Contents/Resources/en.lproj",
   "Test App ßW.app/Contents/Resources/en_GB.lproj",
   "Test App ßW.app/Contents/Resources/es.lproj",
@@ -230,8 +410,9 @@ Array [
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Resources",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Squirrel",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app/Contents",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app/Contents",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app/Contents",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app/Contents",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app/Contents",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app/Contents",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/Current",
@@ -241,12 +422,15 @@ Array [
   "Test App ßW.app/Contents/Frameworks/ReactiveCocoa.framework/Versions/Current",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions/A",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions/Current",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app/Contents/Info.plist",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app/Contents/MacOS",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app/Contents/PkgInfo",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app/Contents/Info.plist",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app/Contents/MacOS",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app/Contents/PkgInfo",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app/Contents/Info.plist",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app/Contents/MacOS",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app/Contents/PkgInfo",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app/Contents/Info.plist",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app/Contents/MacOS",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app/Contents/PkgInfo",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app/Contents/Info.plist",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app/Contents/MacOS",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app/Contents/PkgInfo",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app/Contents/Info.plist",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app/Contents/MacOS",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app/Contents/PkgInfo",
@@ -265,17 +449,22 @@ Array [
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions/A/Modules",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions/A/Resources",
   "Test App ßW.app/Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper EH.app/Contents/MacOS/Test App ßW Helper EH",
-  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper NP.app/Contents/MacOS/Test App ßW Helper NP",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (GPU).app/Contents/MacOS/Test App ßW Helper (GPU)",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Plugin).app/Contents/MacOS/Test App ßW Helper (Plugin)",
+  "Test App ßW.app/Contents/Frameworks/Test App ßW Helper (Renderer).app/Contents/MacOS/Test App ßW Helper (Renderer)",
   "Test App ßW.app/Contents/Frameworks/Test App ßW Helper.app/Contents/MacOS/Test App ßW Helper",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libEGL.dylib",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libffmpeg.dylib",
-  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libnode.dylib",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libGLESv2.dylib",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libswiftshader_libEGL.dylib",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libswiftshader_libGLESv2.dylib",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/am.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/ar.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/bg.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/bn.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/ca.lproj",
-  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/content_shell.pak",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/chrome_100_percent.pak",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/chrome_200_percent.pak",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/crashpad_handler",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/cs.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/da.lproj",
@@ -311,15 +500,14 @@ Array [
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/natives_blob.bin",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/nb.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/nl.lproj",
-  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/pdf_viewer_resources.pak",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/pl.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/pt_BR.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/pt_PT.lproj",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/resources.pak",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/ro.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/ru.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/sk.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/sl.lproj",
-  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/snapshot_blob.bin",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/sr.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/sv.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/sw.lproj",
@@ -328,6 +516,7 @@ Array [
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/th.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/tr.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/uk.lproj",
+  "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/v8_context_snapshot.bin",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/vi.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/zh_CN.lproj",
   "Test App ßW.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/zh_TW.lproj",
@@ -536,7 +725,7 @@ XElement {
           "elements": Array [
             XElement {
               "attributes": Object {
-                "min": "10.9.0",
+                "min": "10.10.0",
               },
               "elements": null,
               "isCData": false,
@@ -661,7 +850,6 @@ Object {
 
 exports[`tar.gz 2`] = `
 Object {
-  "AsarIntegrity": "{\\"checksums\\":{\\"app.asar\\":\\"jdsit4e4hjZ9aecrwjMGAzDfeiVsgi87181wRZFHzgCNdhOFZLQBiEEkRvLm5GqqdG7Ar4DWS28Td17EnL9prg==\\",\\"electron.asar\\":\\"ksFqQ3X5rccdlVaj4tOiH6w3EuU2r0+74T+bQ+jo2tynH+7xSMMPv5tfF5ATKsBaDNOQPZtxMsFwjBuUI8XgSw==\\"}}",
   "CFBundleDisplayName": "Test App ßW",
   "CFBundleExecutable": "Test App ßW",
   "CFBundleIconFile": "Test App ßW.icns",
@@ -670,12 +858,27 @@ Object {
   "CFBundleName": "Test App ßW",
   "CFBundlePackageType": "APPL",
   "CFBundleShortVersionString": "1.1.0",
-  "DTSDKBuild": "14D125",
-  "DTSDKName": "macosx10.1010.10",
   "LSApplicationCategoryType": "your.app.category.type",
-  "LSMinimumSystemVersion": "10.9.0",
+  "NSAppTransportSecurity": Object {
+    "NSAllowsLocalNetworking": true,
+    "NSExceptionDomains": Object {
+      "127.0.0.1": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+      "localhost": Object {
+        "NSIncludesSubdomains": false,
+        "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+        "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false,
+        "NSTemporaryExceptionMinimumTLSVersion": "1.0",
+        "NSTemporaryExceptionRequiresForwardSecrecy": false,
+      },
+    },
+  },
   "NSHighResolutionCapable": true,
-  "NSMainNibFile": "MainMenu",
   "NSPrincipalClass": "AtomApplication",
   "NSSupportsAutomaticGraphicsSwitching": true,
 }

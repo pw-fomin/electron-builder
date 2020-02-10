@@ -1,12 +1,7 @@
-import BluebirdPromise from "bluebird-lst"
 import { exec } from "builder-util"
-import { PackageBuilder } from "builder-util/out/api"
-import { AsyncTaskManager } from "builder-util/out/asyncTaskManager"
-import { exists } from "builder-util/out/fs"
+import { PlatformPackager } from "app-builder-lib"
 import { executeFinally } from "builder-util/out/promise"
-import { outputFile, readFile } from "fs-extra-p"
 import * as path from "path"
-import { TmpDir } from "temp-file"
 
 export { DmgTarget } from "./dmg"
 
@@ -43,7 +38,7 @@ export async function detach(name: string) {
     await exec("hdiutil", ["detach", "-quiet", name])
   }
   catch (e) {
-    await new BluebirdPromise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       setTimeout(() => {
         exec("hdiutil", ["detach", "-force", name])
           .then(resolve)
@@ -53,11 +48,7 @@ export async function detach(name: string) {
   }
 }
 
-export function computeBackgroundColor(rawValue: string) {
-  return require("parse-color")(rawValue).hex
-}
-
-export async function computeBackground(packager: PackageBuilder): Promise<string> {
+export async function computeBackground(packager: PlatformPackager<any>): Promise<string> {
   const resourceList = await packager.resourceList
   if (resourceList.includes("background.tiff")) {
     return path.join(packager.buildResourcesDir, "background.tiff")
@@ -68,34 +59,6 @@ export async function computeBackground(packager: PackageBuilder): Promise<strin
   else {
     return path.join(getDmgTemplatePath(), "background.tiff")
   }
-}
-
-export async function applyProperties(entries: any, env: any, asyncTaskManager: AsyncTaskManager, packager: PackageBuilder) {
-  const dmgPropertiesFile = await packager.getTempFile("dmgProperties.pl")
-
-  asyncTaskManager.addTask(outputFile(dmgPropertiesFile, (await readFile(path.join(getDmgTemplatePath(), "dmgProperties.pl"), "utf-8")).replace("$ENTRIES", entries)))
-
-  await asyncTaskManager.awaitTasks()
-
-  await exec("/usr/bin/perl", [dmgPropertiesFile], {
-    cwd: getDmgVendorPath(),
-    env
-  })
-}
-
-export async function transformBackgroundFileIfNeed(file: string, tmpDir: TmpDir): Promise<string> {
-  if (file.endsWith(".tiff") || file.endsWith(".TIFF")) {
-    return file
-  }
-
-  const retinaFile = file.replace(/\.([a-z]+)$/, "@2x.$1")
-  if (await exists(retinaFile)) {
-    const tiffFile = await tmpDir.getTempFile({suffix: ".tiff"})
-    await exec("tiffutil", ["-cathidpicheck", file, retinaFile, "-out", tiffFile])
-    return tiffFile
-  }
-
-  return file
 }
 
 /** @internal */

@@ -1,15 +1,17 @@
-import { Arch, AsyncTaskManager, exec, InvalidConfigurationError, isCanSignDmg, isEmptyOrSpaces, log, spawn, deepAssign, executeAppBuilder } from "builder-util"
+import { DmgOptions, Target } from "app-builder-lib"
+import { findIdentity, isSignAllowed } from "app-builder-lib/out/codeSign/macCodeSign"
+import MacPackager from "app-builder-lib/out/macPackager"
+import { createBlockmap } from "app-builder-lib/out/targets/differentialUpdateInfoBuilder"
+import { executeAppBuilderAsJson } from "app-builder-lib/out/util/appBuilder"
+import { Arch, AsyncTaskManager, exec, InvalidConfigurationError, isEmptyOrSpaces, log, spawn } from "builder-util"
 import { CancellationToken } from "builder-util-runtime"
 import { copyDir, copyFile, exists, statOrNull } from "builder-util/out/fs"
-import { addLicenseToDmg } from "./dmgLicense"
-import { applyProperties, attachAndExecute, computeBackground, computeBackgroundColor, detach, transformBackgroundFileIfNeed } from "./dmgUtil"
-import { stat } from "fs-extra-p"
+import { stat } from "fs-extra"
 import * as path from "path"
 import sanitizeFileName from "sanitize-filename"
-import { findIdentity, isSignAllowed } from "electron-builder-lib/out/codeSign"
-import { Target, DmgOptions } from "electron-builder-lib"
-import MacPackager from "electron-builder-lib/out/macPackager"
-import { createBlockmap } from "electron-builder-lib/out/targets/differentialUpdateInfoBuilder"
+import { TmpDir } from "temp-file"
+import { addLicenseToDmg } from "./dmgLicense"
+import { attachAndExecute, computeBackground, detach, getDmgVendorPath } from "./dmgUtil"
 
 export class DmgTarget extends Target {
   readonly options: DmgOptions = this.packager.config.dmg || Object.create(null)
@@ -23,17 +25,22 @@ export class DmgTarget extends Target {
     // tslint:disable-next-line:no-invalid-template-strings
     const artifactName = packager.expandArtifactNamePattern(packager.config.dmg, "dmg", null, "${productName}-" + (packager.platformSpecificBuildOptions.bundleShortVersion || "${version}") + ".${ext}")
     const artifactPath = path.join(this.outDir, artifactName)
-    this.logBuilding("DMG", artifactPath, arch)
+    await packager.info.callArtifactBuildStarted({
+      targetPresentableName: "DMG",
+      file: artifactPath,
+      arch,
+    })
 
-    const specification = await this.computeDmgOptions()
-    const volumeName = sanitizeFileName(this.computeVolumeName(specification.title))
+    const volumeName = sanitizeFileName(this.computeVolumeName(this.options.title))
 
     const tempDmg = await createStageDmg(await packager.getTempFile(".dmg"), appPath, volumeName)
 
+    const specification = await this.computeDmgOptions()
     // https://github.com/electron-userland/electron-builder/issues/2115
     const backgroundFile = specification.background == null ? null : await transformBackgroundFileIfNeed(specification.background, packager.info.tempDirManager)
     const finalSize = await computeAssetSize(packager.info.cancellationToken, tempDmg, specification, backgroundFile)
-    await exec("hdiutil", ["resize", "-size", finalSize.toString(), tempDmg])
+    const expandingFinalSize = (finalSize * 0.1) + finalSize
+    await exec("hdiutil", ["resize", "-size", expandingFinalSize.toString(), tempDmg])
 
     const volumePath = path.join("/Volumes", volumeName)
     if (await exists(volumePath)) {
@@ -46,12 +53,12 @@ export class DmgTarget extends Target {
     }
 
     // dmg file must not exist otherwise hdiutil failed (https://github.com/electron-userland/electron-builder/issues/1308#issuecomment-282847594), so, -ov must be specified
-    const args = ["convert", tempDmg, "-ov", "-format", specification.format!, "-o", artifactPath]
+    const args = ["convert", tempDmg, "-ov", "-format", specification.format!!, "-o", artifactPath]
     if (specification.format === "UDZO") {
       args.push("-imagekey", `zlib-level=${process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || "9"}`)
     }
     await spawn("hdiutil", addLogLevel(args))
-    if (this.options.internetEnabled) {
+    if (this.options.internetEnabled && parseInt(require("os").split(".")[0], 10) < 19) {
       await exec("hdiutil", addLogLevel(["internet-enable"]).concat(artifactPath))
     }
 
@@ -60,17 +67,19 @@ export class DmgTarget extends Target {
       await packager.packagerOptions.effectiveOptionComputed({licenseData})
     }
 
-    await this.signDmg(artifactPath)
+    if (this.options.sign === true) {
+      await this.signDmg(artifactPath)
+    }
 
     const safeArtifactName = packager.computeSafeArtifactName(artifactName, "dmg")
-    const updateInfo = await createBlockmap(artifactPath, this, packager, safeArtifactName)
-    packager.info.dispatchArtifactCreated({
+    const updateInfo = this.options.writeUpdateInfo === false ? null : await createBlockmap(artifactPath, this, packager, safeArtifactName)
+    await packager.info.callArtifactBuildCompleted({
       file: artifactPath,
       safeArtifactName,
       target: this,
       arch,
       packager,
-      isWriteUpdateInfo: true,
+      isWriteUpdateInfo: updateInfo != null,
       updateInfo,
     })
   }
@@ -78,10 +87,6 @@ export class DmgTarget extends Target {
   private async signDmg(artifactPath: string) {
     if (!isSignAllowed(false)) {
       return
-    }
-
-    if (!(await isCanSignDmg())) {
-      log.warn({solution: "please update OS"}, "at least macOS 10.11.5 is required to sign DMG")
     }
 
     const packager = this.packager
@@ -92,19 +97,19 @@ export class DmgTarget extends Target {
       return
     }
 
-    const keychainName = (await packager.codeSigningInfo.value).keychainName
+    const keychainFile = (await packager.codeSigningInfo.value).keychainFile
     const certificateType = "Developer ID Application"
-    let identity = await findIdentity(certificateType, qualifier, keychainName)
+    let identity = await findIdentity(certificateType, qualifier, keychainFile)
     if (identity == null) {
-      identity = await findIdentity("Mac Developer", qualifier, keychainName)
+      identity = await findIdentity("Mac Developer", qualifier, keychainFile)
       if (identity == null) {
         return
       }
     }
 
     const args = ["--sign", identity.hash]
-    if (keychainName != null) {
-      args.push("--keychain", keychainName)
+    if (keychainFile != null) {
+      args.push("--keychain", keychainFile)
     }
     args.push(artifactPath)
     await exec("codesign", args)
@@ -127,48 +132,11 @@ export class DmgTarget extends Target {
 
   // public to test
   async computeDmgOptions(): Promise<DmgOptions> {
-    // appdmg
-    const appdmgWindow = (this.options.window as any) || {}
-    const oldPosition = appdmgWindow.position
-    const oldSize = appdmgWindow.size
-    const oldIconSize = (this.options as any)["icon-size"]
-    const oldBackgroundColor = (this.options as any)["background-color"]
-    if (oldPosition != null) {
-      log.warn({solution: "use dmg.window"}, "dmg.window.position is deprecated")
-    }
-    if (oldSize != null) {
-      log.warn({solution: "use dmg.window"}, "dmg.window.size is deprecated")
-    }
-    if (oldIconSize != null) {
-      log.warn({solution: "use dmg.iconSize"}, "dmg.icon-size is deprecated")
-    }
-    if (oldBackgroundColor != null) {
-      log.warn({solution: "use dmg.backgroundColor"}, "dmg.background-color is deprecated")
-    }
-
     const packager = this.packager
-    const specification = deepAssign<DmgOptions>({
-        window: {
-          x: 400,
-          y: 100,
-        },
-        iconSize: oldIconSize,
-        backgroundColor: oldBackgroundColor,
-        icon: "icon" in this.options ? undefined : await packager.getIconPath()
-      },
-      this.options,
-      oldPosition == null ? null : {
-        window: {
-          x: oldPosition.x,
-          y: oldPosition.y,
-        }
-      },
-      oldSize == null ? null : {
-        window: {
-          width: oldSize.width,
-          height: oldSize.height,
-        }
-      })
+    const specification: DmgOptions = {...this.options}
+    if (specification.icon == null && specification.icon !== null) {
+      specification.icon = await packager.getIconPath()
+    }
 
     if (specification.icon != null && isEmptyOrSpaces(specification.icon)) {
       throw new InvalidConfigurationError("dmg.icon cannot be specified as empty string")
@@ -179,7 +147,6 @@ export class DmgTarget extends Target {
       if (background != null) {
         throw new InvalidConfigurationError("Both dmg.backgroundColor and dmg.background are specified — please set the only one")
       }
-      specification.backgroundColor = computeBackgroundColor(specification.backgroundColor)
     }
     else if (background == null) {
       specification.background = await computeBackground(packager)
@@ -193,10 +160,10 @@ export class DmgTarget extends Target {
         (specification as any).format = "UDZO"
       }
       else if (packager.compression === "store") {
-        (specification as any).format = "UDRO"
+        specification.format = "UDRO"
       }
       else {
-        (specification as any).format = packager.compression === "maximum" ? "UDBZ" : "UDZO"
+        specification.format = packager.compression === "maximum" ? "UDBZ" : "UDZO"
       }
     }
 
@@ -255,7 +222,7 @@ async function computeAssetSize(cancellationToken: CancellationToken, dmgFile: s
 }
 
 async function customizeDmg(volumePath: string, specification: DmgOptions, packager: MacPackager, backgroundFile: string | null | undefined) {
-  const window = specification.window!
+  const window = specification.window
   const env: any = {
     ...process.env,
     volumePath,
@@ -263,32 +230,21 @@ async function customizeDmg(volumePath: string, specification: DmgOptions, packa
     iconSize: specification.iconSize || 80,
     iconTextSize: specification.iconTextSize || 12,
 
-    windowX: window.x,
-    windowY: window.y,
-
-    VERSIONER_PERL_PREFER_32_BIT: "true"
+    PYTHONIOENCODING: "utf8",
   }
 
   if (specification.backgroundColor != null || specification.background == null) {
     env.backgroundColor = specification.backgroundColor || "#ffffff"
-    env.windowWidth = (window.width || 540).toString()
-    env.windowHeight = (window.height || 380).toString()
+
+    if (window != null) {
+      env.windowX = (window.x == null ? 100 : window.x).toString()
+      env.windowY = (window.y == null ? 400 : window.y).toString()
+      env.windowWidth = (window.width || 540).toString()
+      env.windowHeight = (window.height || 380).toString()
+    }
   }
   else {
     delete env.backgroundColor
-
-    if (window.width == null) {
-      delete env.windowWidth
-    }
-    else {
-      env.windowWidth = window.width.toString()
-    }
-    if (window.height == null) {
-      delete env.windowHeight
-    }
-    else {
-      env.windowHeight = window.height.toString()
-    }
   }
 
   const args = ["dmg", "--volume", volumePath]
@@ -296,26 +252,55 @@ async function customizeDmg(volumePath: string, specification: DmgOptions, packa
     args.push("--icon", (await packager.getResource(specification.icon))!!)
   }
   if (backgroundFile != null) {
-    env.backgroundFilename = path.basename(backgroundFile)
     args.push("--background", backgroundFile)
   }
-  await executeAppBuilder(args)
+
+  const data: any = await executeAppBuilderAsJson(args)
+  if (data.backgroundWidth != null) {
+    env.windowWidth = window == null ? null : window.width
+    env.windowHeight = window == null ? null : window.height
+
+    if (env.windowWidth == null) {
+      env.windowWidth = data.backgroundWidth.toString()
+    }
+    if (env.windowHeight == null) {
+      env.windowHeight = data.backgroundHeight.toString()
+    }
+
+    if (env.windowX == null) {
+      env.windowX = 400
+    }
+    if (env.windowY == null) {
+      env.windowY = Math.round((1440 - env.windowHeight) / 2).toString()
+    }
+  }
+
+  Object.assign(env, data)
 
   const asyncTaskManager = new AsyncTaskManager(packager.info.cancellationToken)
-  await applyProperties(await computeDmgEntries(specification, volumePath, packager, asyncTaskManager), env, asyncTaskManager, packager)
+  env.iconLocations = await computeDmgEntries(specification, volumePath, packager, asyncTaskManager)
+  await asyncTaskManager.awaitTasks()
+
+  await exec("/usr/bin/python", [path.join(getDmgVendorPath(), "dmgbuild/core.py")], {
+    cwd: getDmgVendorPath(),
+    env
+  })
   return packager.packagerOptions.effectiveOptionComputed == null || !(await packager.packagerOptions.effectiveOptionComputed({volumePath, specification, packager}))
 }
 
-async function computeDmgEntries(specification: DmgOptions, volumePath: string, packager: MacPackager, asyncTaskManager: AsyncTaskManager) {
+async function computeDmgEntries(specification: DmgOptions, volumePath: string, packager: MacPackager, asyncTaskManager: AsyncTaskManager): Promise<string> {
   let result = ""
   for (const c of specification.contents!!) {
     if (c.path != null && c.path.endsWith(".app") && c.type !== "link") {
-      log.warn({path: c.path, reason: "actual path to app will be used instead"}, `do not specify path for application`)
+      log.warn({path: c.path, reason: "actual path to app will be used instead"}, "do not specify path for application")
     }
 
     const entryPath = c.path || `${packager.appInfo.productFilename}.app`
     const entryName = c.name || path.basename(entryPath)
-    result += `&makeEntries("${entryName}", Iloc_xy => [ ${c.x}, ${c.y} ]),\n`
+    if (result.length !== 0) {
+      result += ",\n"
+    }
+    result += `'${entryName}': (${c.x}, ${c.y})`
 
     if (c.type === "link") {
       asyncTaskManager.addTask(exec("ln", ["-s", `/${entryPath.startsWith("/") ? entryPath.substring(1) : entryPath}`, `${volumePath}/${entryName}`]))
@@ -324,7 +309,7 @@ async function computeDmgEntries(specification: DmgOptions, volumePath: string, 
     else if (!isEmptyOrSpaces(c.path) && (c.type === "file" || c.type === "dir")) {
       const source = await packager.getResource(c.path)
       if (source == null) {
-        log.warn({entryPath, reason: "doesn't exist"}, `skipped DMG item copying`)
+        log.warn({entryPath, reason: "doesn't exist"}, "skipped DMG item copying")
         continue
       }
 
@@ -333,4 +318,19 @@ async function computeDmgEntries(specification: DmgOptions, volumePath: string, 
     }
   }
   return result
+}
+
+async function transformBackgroundFileIfNeed(file: string, tmpDir: TmpDir): Promise<string> {
+  if (file.endsWith(".tiff") || file.endsWith(".TIFF")) {
+    return file
+  }
+
+  const retinaFile = file.replace(/\.([a-z]+)$/, "@2x.$1")
+  if (await exists(retinaFile)) {
+    const tiffFile = await tmpDir.getTempFile({suffix: ".tiff"})
+    await exec("tiffutil", ["-cathidpicheck", file, retinaFile, "-out", tiffFile])
+    return tiffFile
+  }
+
+  return file
 }

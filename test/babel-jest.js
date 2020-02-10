@@ -1,5 +1,7 @@
 "use strict"
 
+const isCi = require("is-ci")
+
 let babel
 const crypto = require("crypto")
 const fs = require("fs")
@@ -7,10 +9,10 @@ const jestPreset = require("babel-preset-jest")
 
 // compiled by ts-babel - do not transform
 function isFullyCompiled(fileData) {
-  return fileData.startsWith(`"use strict";`) && fileData.includes("var _")
+  return fileData.lastIndexOf("\n// __ts-babel@") > 0
 }
 
-const BABEL_CONFIG_VERSION = Buffer.from([1])
+const BABEL_CONFIG_VERSION = Buffer.from([2])
 
 function createTransformer(options) {
   options = Object.assign({}, options, {
@@ -31,22 +33,18 @@ function createTransformer(options) {
         .digest("hex")
     },
     process(src, filename, config, transformOptions) {
-      // allow  ~/Documents/electron-builder/node_modules/electron-builder/out/targets/nsis.js:1
-
-      if (process.env.BABEL_JEST_SKIP === "true" || require("is-ci")) {
+      if (process.env.BABEL_JEST_SKIP === "true" || isCi) {
         // precompiled on CI
         return src
       }
 
-      // return src
-
       const nodeModulesIndexOf = filename.indexOf("node_modules")
       if ((nodeModulesIndexOf > 0 && !filename.includes("electron-builder", nodeModulesIndexOf)) || !(filename.includes("/out/") || filename.includes("\\out\\"))) {
-        // console.log(`Skip ${filename}`)
+        // console.log(`skip ${filename}`)
         return src
       }
 
-      // console.log(`Do ${filename}`)
+      // console.log(`do ${filename}`)
 
       if (babel == null) {
         babel = require('@babel/core')
@@ -70,7 +68,7 @@ function createTransformer(options) {
       const finalOptions = Object.assign({}, options, {
         filename,
         plugins,
-        presets: ["babel-preset-ts-node6-bluebird"],
+        presets: ["babel-preset-ts-node8"],
         inputSourceMap: JSON.parse(fs.readFileSync(sourceMapFile, "utf-8")),
         sourceMaps: true,
         ast: false,

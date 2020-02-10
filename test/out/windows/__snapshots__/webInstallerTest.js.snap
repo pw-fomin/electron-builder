@@ -13,6 +13,13 @@ Object {
           },
         ],
         "packages": Object {
+          "arm64": Object {
+            "blockMapSize": "@blockMapSize",
+            "file": "TestApp-1.1.0-arm64.nsis.7z",
+            "path": "TestApp-1.1.0-arm64.nsis.7z",
+            "sha512": "@sha512",
+            "size": "@size",
+          },
           "ia32": Object {
             "blockMapSize": "@blockMapSize",
             "file": "TestApp-1.1.0-ia32.nsis.7z",
@@ -30,7 +37,6 @@ Object {
         },
         "path": "TestApp-WebSetup-1.1.0.exe",
         "releaseDate": "@releaseDate",
-        "sha2": "@sha2",
         "sha512": "@sha512",
         "version": "1.1.0",
       },
@@ -40,6 +46,13 @@ Object {
       "safeArtifactName": "TestApp-WebSetup-1.1.0.exe",
       "updateInfo": Object {
         "packages": Object {
+          "arm64": Object {
+            "blockMapSize": "@blockMapSize",
+            "file": "TestApp-1.1.0-arm64.nsis.7z",
+            "path": "TestApp-1.1.0-arm64.nsis.7z",
+            "sha512": "@sha512",
+            "size": "@size",
+          },
           "ia32": Object {
             "blockMapSize": "@blockMapSize",
             "file": "TestApp-1.1.0-ia32.nsis.7z",
@@ -56,6 +69,10 @@ Object {
           },
         },
       },
+    },
+    Object {
+      "arch": "arm64",
+      "file": "TestApp-1.1.0-arm64.nsis.7z",
     },
     Object {
       "arch": "ia32",
@@ -92,7 +109,6 @@ Object {
         },
         "path": "Test App ßW Web Setup 1.1.0.exe",
         "releaseDate": "@releaseDate",
-        "sha2": "@sha2",
         "sha512": "@sha512",
         "version": "1.1.0",
       },
@@ -144,7 +160,6 @@ Object {
         },
         "path": "WorkFlowy.exe",
         "releaseDate": "@releaseDate",
-        "sha2": "@sha2",
         "sha512": "@sha512",
         "version": "1.1.0",
       },
@@ -156,7 +171,6 @@ Object {
     Object {
       "arch": "x64",
       "file": "WorkFlowy.exe",
-      "safeArtifactName": "WorkFlowy.exe",
       "updateInfo": Object {
         "packages": Object {
           "x64": Object {

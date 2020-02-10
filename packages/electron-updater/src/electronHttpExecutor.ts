@@ -1,59 +1,78 @@
-import { configureRequestOptionsFromUrl, DownloadOptions, HttpExecutor } from "builder-util-runtime"
-import { net } from "electron"
-import { ensureDir } from "fs-extra-p"
+import { DownloadOptions, HttpExecutor, configureRequestOptions, configureRequestUrl } from "builder-util-runtime"
+import { net, session } from "electron"
 import { RequestOptions } from "http"
-import * as path from "path"
+import Session = Electron.Session
+import ClientRequest = Electron.ClientRequest
 
 export type LoginCallback = (username: string, password: string) => void
+export const NET_SESSION_NAME = "electron-updater"
+
+export function getNetSession(): Session {
+  return session.fromPartition(NET_SESSION_NAME, {
+    cache: false
+  })
+}
 
 export class ElectronHttpExecutor extends HttpExecutor<Electron.ClientRequest> {
+  private cachedSession: Session | null = null
+
   constructor(private readonly proxyLoginCallback?: (authInfo: any, callback: LoginCallback) => void) {
     super()
   }
 
-  async download(url: string, destination: string, options: DownloadOptions): Promise<string> {
-    if (options == null || !options.skipDirCreation) {
-      await ensureDir(path.dirname(destination))
-    }
-
+  async download(url: URL, destination: string, options: DownloadOptions): Promise<string> {
     return await options.cancellationToken.createPromise<string>((resolve, reject, onCancel) => {
-      this.doDownload({
-        ...configureRequestOptionsFromUrl(url, {
-          headers: options.headers || undefined,
-        }),
+      const requestOptions = {
+        headers: options.headers || undefined,
         redirect: "manual",
-      }, destination, 0, options, error => {
-        if (error == null) {
-          resolve(destination)
-        }
-        else {
-          reject(error)
-        }
-      }, onCancel)
+      }
+      configureRequestUrl(url, requestOptions)
+      configureRequestOptions(requestOptions)
+      this.doDownload(requestOptions, {
+        destination,
+        options,
+        onCancel,
+        callback: error => {
+          if (error == null) {
+            resolve(destination)
+          }
+          else {
+            reject(error)
+          }
+        },
+        responseHandler: null,
+      }, 0)
     })
   }
 
-  public doRequest(options: any, callback: (response: any) => void): any {
-    const request = net.request(options)
-    request.on("response", callback)
-    this.addProxyLoginHandler(request)
-    return request
-  }
+  createRequest(options: any, callback: (response: any) => void): any {
+    // differential downloader can call this method very often, so, better to cache session
+    if (this.cachedSession == null) {
+      this.cachedSession = getNetSession()
+    }
 
-  private addProxyLoginHandler(request: Electron.ClientRequest) {
+    const request = net.request({
+      ...options,
+      session: this.cachedSession,
+    })
+    request.on("response", callback)
     if (this.proxyLoginCallback != null) {
       request.on("login", this.proxyLoginCallback)
     }
+    return request
   }
-
-  protected addRedirectHandlers(request: any, options: RequestOptions, reject: (error: Error) => void, redirectCount: number, handler: (options: RequestOptions) => void) {
+  protected addRedirectHandlers(request: ClientRequest, options: RequestOptions, reject: (error: Error) => void, redirectCount: number, handler: (options: RequestOptions) => void) {
     request.on("redirect", (statusCode: number, method: string, redirectUrl: string) => {
-      if (redirectCount > 10) {
-        reject(new Error("Too many redirects (> 10)"))
-        return
-      }
+      // no way to modify request options, abort old and make a new one
+      // https://github.com/electron/electron/issues/11505
+      request.abort()
 
-      handler(HttpExecutor.prepareRedirectUrlOptions(redirectUrl, options))
+      if (redirectCount > this.maxRedirects) {
+        reject(this.createMaxRedirectError())
+      }
+      else {
+        handler(HttpExecutor.prepareRedirectUrlOptions(redirectUrl, options))
+      }
     })
   }
 }

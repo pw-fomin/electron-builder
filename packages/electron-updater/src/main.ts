@@ -7,7 +7,10 @@ import { LoginCallback } from "./electronHttpExecutor"
 export { AppUpdater, NoOpLogger } from "./AppUpdater"
 export { UpdateInfo }
 export { CancellationToken } from "builder-util-runtime"
-export { Provider } from "./Provider"
+export { Provider } from "./providers/Provider"
+export { AppImageUpdater } from "./AppImageUpdater"
+export { MacUpdater } from "./MacUpdater"
+export { NsisUpdater } from "./NsisUpdater"
 
 // autoUpdater to mimic electron bundled autoUpdater
 let _autoUpdater: any
@@ -41,36 +44,6 @@ export interface ResolvedUpdateFileInfo {
   readonly info: UpdateFileInfo
 
   packageInfo?: PackageFileInfo
-}
-
-// due to historical reasons for windows we use channel name without platform specifier
-export function getDefaultChannelName() {
-  return `latest${getChannelFilePrefix()}`
-}
-
-function getChannelFilePrefix() {
-  const currentPlatform = getCurrentPlatform()
-  if (currentPlatform === "linux") {
-    const arch = process.env.TEST_UPDATER_ARCH || process.arch
-    const archSuffix = arch === "x64" ? "" : `-${arch}`
-    return "-linux" + archSuffix
-  }
-  else {
-    return currentPlatform === "darwin" ? "-mac" : ""
-  }
-}
-
-export function getCustomChannelName(channel: string) {
-  return `${channel}${getChannelFilePrefix()}`
-}
-
-export function getCurrentPlatform() {
-  return process.env.TEST_UPDATER_PLATFORM || process.platform
-}
-
-export function isUseOldMacProvider() {
-  // getCurrentPlatform() === "darwin"
-  return false
 }
 
 export function getChannelFilename(channel: string) {
@@ -110,13 +83,17 @@ export class UpdaterSignal {
     addHandler(this.emitter, DOWNLOAD_PROGRESS, handler)
   }
 
-  updateDownloaded(handler: (info: UpdateInfo) => void) {
+  updateDownloaded(handler: (info: UpdateDownloadedEvent) => void) {
     addHandler(this.emitter, UPDATE_DOWNLOADED, handler)
   }
 
   updateCancelled(handler: (info: UpdateInfo) => void) {
     addHandler(this.emitter, "update-cancelled", handler)
   }
+}
+
+export interface UpdateDownloadedEvent extends UpdateInfo {
+  downloadedFile: string
 }
 
 const isLogEvent = false
@@ -153,14 +130,16 @@ export function newBaseUrl(url: string) {
   return result
 }
 
-/** @internal */
-export function newUrlFromBase(pathname: string, baseUrl: URL, addRandomQueryToAvoidCaching = false): URL {
+// addRandomQueryToAvoidCaching is false by default because in most cases URL already contains version number,
+// so, it makes sense only for Generic Provider for channel files
+export function newUrlFromBase(pathname: string, baseUrl: URL, addRandomQueryToAvoidCaching: boolean = false): URL {
   const result = new URL(pathname, baseUrl)
   // search is not propagated (search is an empty string if not specified)
-  if (!result.search && baseUrl.search) {
-    result.search = baseUrl.search
+  const search = baseUrl.search
+  if (search != null && search.length !== 0) {
+    result.search = search
   }
-  if (addRandomQueryToAvoidCaching && !result.search) {
+  else if (addRandomQueryToAvoidCaching) {
     result.search = `noCache=${Date.now().toString(32)}`
   }
   return result

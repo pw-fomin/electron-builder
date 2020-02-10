@@ -5,9 +5,9 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/_book" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/docs/generated" />
       <excludeFolder url="file://$MODULE_DIR$/jsdoc/out" />
       <excludeFolder url="file://$MODULE_DIR$/out-jsdoc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/app-builder-lib/out" />
       <excludeFolder url="file://$MODULE_DIR$/packages/app-package-builder/out" />
       <excludeFolder url="file://$MODULE_DIR$/packages/asar-integrity/out" />
       <excludeFolder url="file://$MODULE_DIR$/packages/builder-util-runtime/out" />
@@ -28,6 +28,7 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/wine-bin/out" />
       <excludeFolder url="file://$MODULE_DIR$/scripts/jsdoc/out" />
       <excludeFolder url="file://$MODULE_DIR$/scripts/renderer/out" />
+      <excludeFolder url="file://$MODULE_DIR$/site" />
       <excludeFolder url="file://$MODULE_DIR$/test/fixtures/app-executable-deps/app/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/test/fixtures/app-executable-deps/dist" />
       <excludeFolder url="file://$MODULE_DIR$/test/fixtures/app-executable-deps/node_modules" />
@@ -37,7 +38,6 @@
       <excludeFolder url="file://$MODULE_DIR$/test/out" />
       <excludeFolder url="file://$MODULE_DIR$/test/vendor" />
       <excludePattern pattern="yarn.lock" />
-      <excludePattern pattern="scheme.json" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

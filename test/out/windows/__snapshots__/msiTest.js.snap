@@ -17,8 +17,8 @@ Object {
   "win": Array [
     Object {
       "arch": "x64",
-      "file": "Test MSI-1.1.0.msi",
-      "safeArtifactName": "TestApp-1.1.0.msi",
+      "file": "Test MSI 1.1.0.msi",
+      "safeArtifactName": "Test-MSI-1.1.0.msi",
     },
   ],
 }
@@ -29,8 +29,8 @@ Object {
   "win": Array [
     Object {
       "arch": "x64",
-      "file": "Test MSI-1.1.0.msi",
-      "safeArtifactName": "TestApp-1.1.0.msi",
+      "file": "Test MSI 1.1.0.msi",
+      "safeArtifactName": "Test-MSI-1.1.0.msi",
     },
   ],
 }
@@ -41,8 +41,8 @@ Object {
   "win": Array [
     Object {
       "arch": "x64",
-      "file": "Test MSI Per User-1.1.0.msi",
-      "safeArtifactName": "TestApp-1.1.0.msi",
+      "file": "Test MSI Per User 1.1.0.msi",
+      "safeArtifactName": "Test-MSI-Per-User-1.1.0.msi",
     },
   ],
 }

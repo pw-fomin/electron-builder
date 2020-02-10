@@ -1,8 +1,8 @@
 import { configureRequestOptionsFromUrl, GithubOptions } from "builder-util-runtime"
-import { httpExecutor } from "builder-util/out/nodeHttpExecutor"
 import { MacUpdater } from "electron-updater/out/MacUpdater"
 import { EventEmitter } from "events"
-import { createTestApp, trackEvents, tuneNsisUpdater, writeUpdateConfig } from "../helpers/updaterTestUtil"
+import { assertThat } from "../helpers/fileAssert"
+import { createTestAppAdapter, httpExecutor, trackEvents, tuneTestUpdater, writeUpdateConfig } from "../helpers/updaterTestUtil"
 
 class TestNativeUpdater extends EventEmitter {
   private updateUrl: string | null = null
@@ -17,29 +17,26 @@ class TestNativeUpdater extends EventEmitter {
   }
 
   private async download() {
-    const data = JSON.parse((await httpExecutor.request(configureRequestOptionsFromUrl(this.updateUrl!, {})))!!)
+    const data = JSON.parse((await httpExecutor.request(configureRequestOptionsFromUrl(this.updateUrl!!, {})))!!)
     await httpExecutor.request(configureRequestOptionsFromUrl(data.url, {}))
   }
 
   // noinspection JSMethodCanBeStatic
-  setFeedURL(updateUrl: string) {
+  setFeedURL(updateUrl: any) {
     // console.log("TestNativeUpdater.setFeedURL " + updateUrl)
-    this.updateUrl = updateUrl
+    this.updateUrl = updateUrl.url
   }
 }
 
 test.ifAll.ifNotCi.ifMac("mac updates", async () => {
-  process.env.TEST_UPDATER_PLATFORM = process.platform
   const mockNativeUpdater = new TestNativeUpdater()
-  const mockApp = createTestApp("0.0.1")
   jest.mock("electron", () => {
     return {
       autoUpdater: mockNativeUpdater,
-      app: mockApp
     }
   }, {virtual: true})
 
-  const updater = new MacUpdater()
+  const updater = new MacUpdater(undefined, await createTestAppAdapter())
   const options: GithubOptions = {
     provider: "github",
     owner: "develar",
@@ -51,12 +48,15 @@ test.ifAll.ifNotCi.ifMac("mac updates", async () => {
     // console.log(JSON.stringify(data))
   })
 
-  tuneNsisUpdater(updater)
+  await tuneTestUpdater(updater);
+  (updater as any)._testOnlyOptions.platform = process.platform
   const actualEvents = trackEvents(updater)
 
   const updateCheckResult = await updater.checkForUpdates()
   // todo when will be updated to use files
   // expect(removeUnstableProperties(updateCheckResult.updateInfo.files)).toMatchSnapshot()
-  expect(await updateCheckResult.downloadPromise).toEqual([])
+  const files = await updateCheckResult.downloadPromise
+  expect(files!!.length).toEqual(1)
+  await assertThat(files!![0]).isFile()
   expect(actualEvents).toMatchSnapshot()
 })

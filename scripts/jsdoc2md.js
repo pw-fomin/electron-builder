@@ -4,7 +4,7 @@ require("source-map-support").install()
 
 const globby = require("globby")
 const path = require("path")
-const fs = require("fs-extra-p")
+const fs = require("fs-extra")
 const jsdoc2md = require("jsdoc-to-markdown")
 const pathSorter = require("path-sort")
 const source = path.join(__dirname, "jsdoc", "out")
@@ -22,13 +22,13 @@ async function main() {
       ]
     },
 
-    {
-      page: "auto-update.md", pageUrl: "auto-update", mainHeader: "API",
-      files: [
-        path.join(source, "updater/electron-updater.js"),
-        path.join(source, "builder-util-runtime/builder-util-runtime.js"),
-      ]
-    },
+    // {
+    //   page: "auto-update.md", pageUrl: "auto-update", mainHeader: "API",
+    //   files: [
+    //     path.join(source, "updater/electron-updater.js"),
+    //     path.join(source, "builder-util-runtime/builder-util-runtime.js"),
+    //   ]
+    // },
   ]
 
   const jsdoc2MdOptions = {
@@ -40,7 +40,7 @@ async function main() {
   }
   await render2([
     path.join(source, "builder", "electron-builder.js"),
-    path.join(source, "builder-lib", "electron-builder-lib.js"),
+    path.join(source, "builder-lib", "app-builder-lib.js"),
     path.join(source, "builder-util-runtime", "builder-util-runtime.js")
   ], jsdoc2MdOptions)
 
@@ -65,7 +65,7 @@ async function render2(files, jsdoc2MdOptions) {
   const renderer = new Renderer(dataMap)
 
   const blockedPropertyName = new Set([
-    "fileAssociations", "directories", "buildVersion", "mac", "linux", "win", "buildDependenciesFromSource", "afterPack", "afterSign",
+    "fileAssociations", "directories", "buildVersion", "mac", "linux", "win", "buildDependenciesFromSource", "afterPack", "remoteBuild",
     "installerIcon", "include", "createDesktopShortcut", "displayLanguageSelector", "signingHashAlgorithms", "publisherName",
     "forceCodeSigning",
   ])
@@ -104,7 +104,7 @@ async function render2(files, jsdoc2MdOptions) {
     }
 
     if (context.property != null && context.property.name === "publish") {
-      return "The [publish](/configuration/publish.md) options."
+      return "The [publish](/configuration/publish) options."
     }
 
     if (context.place === TypeNamePlace.PROPERTY) {
@@ -117,18 +117,18 @@ async function render2(files, jsdoc2MdOptions) {
         if (propertyName === "extraFiles") {
           label = "extra files"
         }
-        return `The [${label}](/configuration/contents.md#${propertyName.toLowerCase()}) configuration.`
+        return `The [${label}](/configuration/contents#${propertyName.toLowerCase()}) configuration.`
       }
 
       if (context.property.name === "sign" && context.object.name === "WindowsConfiguration") {
         return "String | (configuration: CustomWindowsSignTaskConfiguration) => Promise"
       }
-      if (context.object.name === "Configuration") {
-        if (context.property.name === "afterPack") {
-          return "(context: AfterPackContext) => Promise | null"
-        }
-        if (context.property.name === "afterSign") {
-          return "(context: AfterPackContext) => Promise | null"
+      else if (context.property.name === "plugs" && context.object.name === "SnapOptions") {
+        return "Array&lt;String | SnapOptions.PlugDescriptor&gt;"
+      }
+      else if (context.object.name === "Configuration") {
+        if (context.property.name === "afterPack" || context.property.name === "afterSign" || context.property.name === "afterAllArtifactBuild" || context.property.name === "onNodeModuleFile") {
+          return ""
         }
         if (context.property.name === "beforeBuild") {
           return "(context: BeforeBuildContext) => Promise | null"
@@ -137,7 +137,7 @@ async function render2(files, jsdoc2MdOptions) {
     }
 
     if (types.some(it => it.endsWith("TargetConfiguration"))) {
-      return "String | [TargetConfiguration](/configuration/target.md#targetconfiguration)"
+      return "String | [TargetConfiguration](/cli#targetconfiguration)"
     }
     if (types.some(it => it.endsWith(".Configuration") || it === "Configuration")) {
       // description contains link to.
@@ -149,45 +149,45 @@ async function render2(files, jsdoc2MdOptions) {
     }
 
     if (types.some(it => it.endsWith("WindowsConfiguration"))) {
-      return "[WindowsConfiguration](win.md)"
+      return "[WindowsConfiguration](win)"
     }
     if (types.some(it => it.endsWith(".NsisOptions") || it === "NsisOptions")) {
-      return "[NsisOptions](nsis.md)"
+      return "[NsisOptions](nsis)"
     }
     if (types.some(it => it.endsWith("AppXOptions"))) {
-      return "[AppXOptions](appx.md)"
+      return "[AppXOptions](appx)"
     }
     if (types.some(it => it.endsWith("SquirrelWindowsOptions"))) {
       return "[SquirrelWindowsOptions](squirrel-windows.md)"
     }
 
     if (types.some(it => it.endsWith("MacConfiguration"))) {
-      return "[MacConfiguration](mac.md)"
+      return "[MacConfiguration](mac)"
     }
     if (types.some(it => it.endsWith("DmgOptions"))) {
-      return "[DmgOptions](dmg.md)"
+      return "[DmgOptions](dmg)"
     }
     if (types.some(it => it.endsWith("MasConfiguration"))) {
-      return "[MasConfiguration](mas.md)"
+      return "[MasConfiguration](mas)"
     }
     if (types.some(it => it.endsWith("PkgOptions"))) {
-      return "[PkgOptions](pkg.md)"
+      return "[PkgOptions](pkg)"
     }
 
     if (types.some(it => it.endsWith("LinuxConfiguration"))) {
-      return "[LinuxConfiguration](linux.md)"
+      return "[LinuxConfiguration](linux)"
     }
     if (types.some(it => it.endsWith("SnapOptions"))) {
-      return "[SnapOptions](snap.md)"
+      return "[SnapOptions](snap)"
     }
     if (types.some(it => it.endsWith("AppImageOptions"))) {
-      return "[AppImageOptions](/configuration/linux.md#appimageoptions)"
+      return "[AppImageOptions](/configuration/linux#appimageoptions)"
     }
     if (types.some(it => it.endsWith("DebOptions"))) {
-      return "[DebOptions](/configuration/linux.md#de)"
+      return "[DebOptions](/configuration/linux#de)"
     }
     if (types.some(it => it.endsWith("LinuxTargetSpecificOptions"))) {
-      return "[LinuxTargetSpecificOptions](/configuration/linux.md#LinuxTargetSpecificOptions)"
+      return "[LinuxTargetSpecificOptions](/configuration/linux#LinuxTargetSpecificOptions)"
     }
 
     return originalRenderTypeName.call(this, context)
@@ -215,10 +215,8 @@ async function render2(files, jsdoc2MdOptions) {
     }),
 
     new Page("generated/s3-options.md", "S3Options"),
-
-    new Page("generated/spaces-options.md", null, {
-      "SpacesOptions": "",
-    }),
+    new Page("generated/snap-store-options.md", null, {"SnapStoreOptions": ""}),
+    new Page("generated/spaces-options.md", null, {"SpacesOptions": ""}),
 
     new Page("generated/appimage-options.md", "AppImageOptions"),
     new Page("generated/DebOptions.md", "DebOptions"),
@@ -227,8 +225,6 @@ async function render2(files, jsdoc2MdOptions) {
     new Page("generated/Metadata.md", "Metadata"),
     new Page("generated/NsisOptions.md", "NsisOptions"),
     new Page("generated/TargetSpecificOptions.md", "TargetSpecificOptions"),
-
-    new Page("configuration/target.md", "TargetConfiguration"),
   ]
 
   renderer.dataMap = dataMap
@@ -270,7 +266,7 @@ async function render2(files, jsdoc2MdOptions) {
       }
     }
 
-    await writeDocFile(path.join(__dirname, "..", "docs", page.file), content)
+    await writeDocFile(path.join(__dirname, "..", "docs", page.file), content + "\n" /* mkdocs requires extra newline otherwise trailing link is not rendered */)
   }
 }
 
@@ -385,7 +381,7 @@ async function render(pages, jsdoc2MdOptions) {
   }
 
   sortOptions(pages)
-  sortAutoUpdate(pages)
+  // sortAutoUpdate(pages)
 
   for (const page of pages) {
     const finalOptions = Object.assign({
@@ -429,7 +425,7 @@ async function writeDocFile(docOutFile, content) {
     const start = existingContent.indexOf(startMarker)
     const end = existingContent.indexOf(endMarker)
     if (start != -1 && end != -1) {
-      return fs.outputFile(docOutFile, existingContent.substring(0, start + startMarker.length) + "\n" + content + "\n" + existingContent.substring(end))
+      return fs.outputFile(docOutFile, existingContent.substring(0, start + startMarker.length) + "\n" + content + "\n" + existingContent.substring(end).trim() + "\n")
     }
     else {
       return fs.outputFile(docOutFile, content)

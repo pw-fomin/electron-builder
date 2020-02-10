@@ -9,18 +9,14 @@ import { safeDump } from "js-yaml"
 import * as path from "path"
 import "source-map-support/register"
 import { debug, log } from "./log"
-import isCI from "is-ci"
 
 export { safeStringifyJson } from "builder-util-runtime"
 export { TmpDir } from "temp-file"
 export { log, debug } from "./log"
-export { isMacOsSierra, isCanSignDmg } from "./macosVersion"
-export { execWine, prepareWindowsExecutableArgs } from "./wine"
 export { Arch, getArchCliNames, toLinuxArchString, getArchSuffix, ArchType, archFromString } from "./arch"
 export { AsyncTaskManager } from "./asyncTaskManager"
 export { DebugLogger } from "./DebugLogger"
 
-export { hashFile } from "./hash"
 export { copyFile } from "./fs"
 export { asArray } from "builder-util-runtime"
 
@@ -28,12 +24,16 @@ export { deepAssign } from "./deepAssign"
 
 export const debug7z = _debug("electron-builder:7z")
 
-export function serializeToYaml(object: object, skipInvalid = false) {
-  return safeDump(object, {lineWidth: 8000, skipInvalid})
+export function serializeToYaml(object: any, skipInvalid = false, noRefs = false) {
+  return safeDump(object, {
+    lineWidth: 8000,
+    skipInvalid,
+    noRefs,
+  })
 }
 
 export function removePassword(input: string) {
-  return input.replace(/(-String |-P |pass:| \/p |-pass )([^ ]+)/g, (match, p1, p2) => {
+  return input.replace(/(-String |-P |pass:| \/p |-pass |--secretKey |--accessKey |-p )([^ ]+)/g, (match, p1, p2) => {
     if (p1.trim() === "/p" && p2.startsWith("\\\\Mac\\Host\\\\")) {
       // appx /p
       return `${p1}${p2}`
@@ -42,9 +42,9 @@ export function removePassword(input: string) {
   })
 }
 
-function getProcessEnv(env: { [key: string]: string | undefined } | undefined | null) {
+function getProcessEnv(env: { [key: string]: string | undefined } | undefined | null): NodeJS.ProcessEnv | undefined {
   if (process.platform === "win32") {
-    return env
+    return env == null ? undefined : env
   }
 
   const finalEnv = {
@@ -88,7 +88,7 @@ export function exec(file: string, args?: Array<string> | null, options?: ExecFi
   return new Promise<string>((resolve, reject) => {
     execFile(file, args, {
     ...options,
-    maxBuffer: 10 * 1024 * 1024,
+    maxBuffer: 1000 * 1024 * 1024,
     env: getProcessEnv(options == null ? null : options.env),
   }, (error, stdout, stderr) => {
       if (error == null) {
@@ -100,7 +100,7 @@ export function exec(file: string, args?: Array<string> | null, options?: ExecFi
             logFields.stdout = stdout
           }
           if (stderr.length > 0) {
-            logFields.stderr = file.endsWith("wine") ? removeWineSpam(stderr.toString()) : stderr
+            logFields.stderr = stderr
           }
 
           log.debug(logFields, "executed")
@@ -111,13 +111,13 @@ export function exec(file: string, args?: Array<string> | null, options?: ExecFi
         let message = chalk.red(removePassword(`Exit code: ${(error as any).code}. ${error.message}`))
         if (stdout.length !== 0) {
           if (file.endsWith("wine")) {
-            stdout = removeWineSpam(stdout.toString())
+            stdout = stdout.toString()
           }
           message += `\n${chalk.yellow(stdout.toString())}`
         }
         if (stderr.length !== 0) {
           if (file.endsWith("wine")) {
-            stderr = removeWineSpam(stderr.toString())
+            stderr = stderr.toString()
           }
           message += `\n${chalk.red(stderr.toString())}`
         }
@@ -126,14 +126,6 @@ export function exec(file: string, args?: Array<string> | null, options?: ExecFi
       }
     })
   })
-}
-
-function removeWineSpam(out: string) {
-  return out.toString()
-    .split("\n")
-    .filter(it => !it.includes("wine: cannot find L\"C:\\\\windows\\\\system32\\\\winemenubuilder.exe\"") && !it.includes("err:wineboot:ProcessRunKeys Error running cmd L\"C:\\\\windows\\\\system32\\\\winemenubuilder.exe"))
-    .join("\n")
-
 }
 
 export interface ExtraSpawnOptions {
@@ -146,7 +138,7 @@ function logSpawn(command: string, args: Array<string>, options: SpawnOptions) {
     return
   }
 
-  const argsString = args.join(" ")
+  const argsString = removePassword(args.join(" "))
   const logFields: any = {
     command: command + " " + (command === "docker" ? argsString : removePassword(argsString)),
   }
@@ -166,7 +158,7 @@ export function doSpawn(command: string, args: Array<string>, options?: SpawnOpt
   if (options.stdio == null) {
     const isDebugEnabled = debug.enabled
     // do not ignore stdout/stderr if not debug, because in this case we will read into buffer and print on error
-    options.stdio = [extraOptions != null && extraOptions.isPipeInput ? "pipe" : "ignore", isDebugEnabled ? "inherit" : "pipe", isDebugEnabled ? "inherit" : "pipe"]
+    options.stdio = [extraOptions != null && extraOptions.isPipeInput ? "pipe" : "ignore", isDebugEnabled ? "inherit" : "pipe", isDebugEnabled ? "inherit" : "pipe"] as any
   }
 
   logSpawn(command, args, options)
@@ -194,11 +186,11 @@ export function spawnAndWrite(command: string, args: Array<string>, data: string
         clearTimeout(timeout)
       }
       finally {
-        reject(error.stack || error.toString())
+        reject(error)
       }
     })
 
-    childProcess.stdin.end(data)
+    childProcess.stdin!!.end(data)
   })
 }
 
@@ -244,25 +236,27 @@ function handleProcess(event: string, childProcess: ChildProcess, command: strin
       }
     }
     else {
-      function formatOut(text: string, title: string) {
-        return text.length === 0 ? "" : `\n${title}:\n${text}`
-      }
-
-      reject(new Error(`${command} exited with code ${code}${formatOut(out, "Output")}${formatOut(errorOut, "Error output")}`))
+      reject(new ExecError(command, code, formatOut(out, "Output"), formatOut(errorOut, "Error output")))
     }
   })
 }
 
-export function use<T, R>(value: T | null, task: (it: T) => R): R | null {
-  return value == null ? null : task(value)
+function formatOut(text: string, title: string) {
+  return text.length === 0 ? "" : `\n${title}:\n${text}`
 }
 
-export function debug7zArgs(command: "a" | "x"): Array<string> {
-  const args = [command, "-bd"]
-  if (debug7z.enabled) {
-    args.push("-bb")
+export class ExecError extends Error {
+  alreadyLogged = false
+
+  constructor(command: string, readonly exitCode: number, out: string, errorOut: string, code: string = "ERR_ELECTRON_BUILDER_CANNOT_EXECUTE") {
+    super(`${command} exited with code ${code}${formatOut(out, "Output")}${formatOut(errorOut, "Error output")}`);
+
+    (this as NodeJS.ErrnoException).code = code
   }
-  return args
+}
+
+export function use<T, R>(value: T | null, task: (it: T) => R): R | null {
+  return value == null ? null : task(value)
 }
 
 export function isEmptyOrSpaces(s: string | null | undefined): s is "" | null | undefined {
@@ -270,21 +264,7 @@ export function isEmptyOrSpaces(s: string | null | undefined): s is "" | null | 
 }
 
 export function isTokenCharValid(token: string) {
-  return /^[\w\/=+-]+$/.test(token)
-}
-
-// fpm bug - rpm build --description is not escaped, well... decided to replace quite to smart quote
-// http://leancrew.com/all-this/2010/11/smart-quotes-in-javascript/
-export function smarten(s: string): string {
-  // opening singles
-  s = s.replace(/(^|[-\u2014\s(\["])'/g, "$1\u2018")
-  // closing singles & apostrophes
-  s = s.replace(/'/g, "\u2019")
-  // opening doubles
-  s = s.replace(/(^|[-\u2014/\[(\u2018\s])"/g, "$1\u201c")
-  // closing doubles
-  s = s.replace(/"/g, "\u201d")
-  return s
+  return /^[.\w\/=+-]+$/.test(token)
 }
 
 export function addValue<K, T>(map: Map<K, Array<T>>, key: K, value: T) {
@@ -336,7 +316,7 @@ export function isPullRequest() {
     return value && value !== "false"
   }
 
-  return isSet(process.env.TRAVIS_PULL_REQUEST) || isSet(process.env.CI_PULL_REQUEST) || isSet(process.env.CI_PULL_REQUESTS) || isSet(process.env.BITRISE_PULL_REQUEST) || isSet(process.env.APPVEYOR_PULL_REQUEST_NUMBER)
+  return isSet(process.env.TRAVIS_PULL_REQUEST) || isSet(process.env.CIRCLE_PULL_REQUEST) || isSet(process.env.BITRISE_PULL_REQUEST) || isSet(process.env.APPVEYOR_PULL_REQUEST_NUMBER)
 }
 
 export function isEnvTrue(value: string | null | undefined) {
@@ -350,26 +330,40 @@ export class InvalidConfigurationError extends Error {
   constructor(message: string, code: string = "ERR_ELECTRON_BUILDER_INVALID_CONFIGURATION") {
     super(message);
 
-    (this as any).code = code
+    (this as NodeJS.ErrnoException).code = code
   }
 }
 
-export function executeAppBuilder(args: Array<string>): Promise<string> {
+export function executeAppBuilder(args: Array<string>, childProcessConsumer?: (childProcess: ChildProcess) => void, extraOptions: SpawnOptions = {}): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const command = appBuilderPath
     const env: any = {
-      // before process.env to allow customize by user
-      SNAP_USE_HARD_LINKS_IF_POSSIBLE: isCI.toString(),
       ...process.env,
       SZA_PATH: path7za,
+      FORCE_COLOR: chalk.level === 0 ? "0" : "1",
     }
     const cacheEnv = process.env.ELECTRON_BUILDER_CACHE
     if (cacheEnv != null && cacheEnv.length > 0) {
       env.ELECTRON_BUILDER_CACHE = path.resolve(cacheEnv)
     }
-    handleProcess("close", doSpawn(command, args, {
+
+    if (extraOptions.env != null) {
+      Object.assign(env, extraOptions.env)
+    }
+
+    const childProcess = doSpawn(command, args, {
       env,
-      stdio: ["ignore", "pipe", process.stdout]
-    }), command, resolve, reject)
+      stdio: ["ignore", "pipe", process.stdout],
+      ...extraOptions,
+    })
+    if (childProcessConsumer != null) {
+      childProcessConsumer(childProcess)
+    }
+    handleProcess("close", childProcess, command, resolve, error => {
+      if (error instanceof ExecError && error.exitCode === 2) {
+        error.alreadyLogged = true
+      }
+      reject(error)
+    })
   })
 }

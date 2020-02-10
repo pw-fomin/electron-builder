@@ -1,10 +1,10 @@
 import { path7za } from "7zip-bin"
-import BluebirdPromise from "bluebird-lst"
-import { Arch, debug, exec, execWine, log, prepareWindowsExecutableArgs as prepareArgs, spawn } from "builder-util"
+import { Arch, debug, exec, log, spawn, isEmptyOrSpaces } from "builder-util"
 import { copyFile, walk } from "builder-util/out/fs"
-import { compute7zCompressArgs } from "electron-builder-lib/out/targets/archive"
-import { WinPackager } from "electron-builder-lib/out/winPackager"
-import { createWriteStream, ensureDir, remove, stat, unlink, writeFile } from "fs-extra-p"
+import { compute7zCompressArgs } from "app-builder-lib/out/targets/archive"
+import { execWine, prepareWindowsExecutableArgs as prepareArgs } from "app-builder-lib/out/wine"
+import { WinPackager } from "app-builder-lib/out/winPackager"
+import { createWriteStream, ensureDir, remove, stat, unlink, writeFile } from "fs-extra"
 import * as path from "path"
 
 const archiver = require("archiver")
@@ -70,6 +70,10 @@ export class SquirrelBuilder {
         .then(() => ensureDir(outputDirectory))
     ])
 
+    if (isEmptyOrSpaces(options.description)) {
+      options.description = options.productName
+    }
+
     if (options.remoteReleases) {
       await syncReleases(outputDirectory, options)
     }
@@ -90,7 +94,7 @@ export class SquirrelBuilder {
 
     const embeddedArchiveFile = await this.createEmbeddedArchiveFile(nupkgPath, dirToArchive)
 
-    await execWine(path.join(options.vendorPath, "WriteZipToSetup.exe"), [setupPath, embeddedArchiveFile])
+    await execWine(path.join(options.vendorPath, "WriteZipToSetup.exe"), null, [setupPath, embeddedArchiveFile])
 
     await packager.signAndEditResources(setupPath, arch, outDir)
     if (options.msi && process.platform === "win32") {
@@ -106,7 +110,7 @@ export class SquirrelBuilder {
       "--releasify", nupkgPath,
       "--releaseDir", this.outputDirectory
     ]
-    const out = (await exec(process.platform === "win32" ? path.join(this.options.vendorPath, "Update.com") : "mono", prepareArgs(args, path.join(this.options.vendorPath, "Update-Mono.exe")))).trim()
+    const out = (await execSw(this.options, args)).trim()
     if (debug.enabled) {
       debug(`Squirrel output: ${out}`)
     }
@@ -142,7 +146,7 @@ async function pack(options: SquirrelOptions, directory: string, updateFile: str
   // SW now doesn't support 0-level nupkg compressed files. It means that we are forced to use level 1 if store level requested.
   const archive = archiver("zip", {zlib: {level: Math.max(1, (options.packageCompressionLevel == null ? 9 : options.packageCompressionLevel))}})
   const archiveOut = createWriteStream(outFile)
-  const archivePromise = new BluebirdPromise((resolve, reject) => {
+  const archivePromise = new Promise((resolve, reject) => {
     archive.on("error", reject)
     archiveOut.on("error", reject)
     archiveOut.on("close", resolve)
@@ -210,12 +214,21 @@ async function pack(options: SquirrelOptions, directory: string, updateFile: str
   await archivePromise
 }
 
+function execSw(options: SquirrelOptions, args: Array<string>) {
+  return exec(process.platform === "win32" ? path.join(options.vendorPath, "Update.com") : "mono", prepareArgs(args, path.join(options.vendorPath, "Update-Mono.exe")), {
+    env: {
+      ...process.env,
+      SZA_PATH: path7za,
+    }
+  })
+}
+
 async function msi(options: SquirrelOptions, nupkgPath: string, setupPath: string, outputDirectory: string, outFile: string) {
   const args = [
     "--createMsi", nupkgPath,
     "--bootstrapperExe", setupPath
   ]
-  await exec(process.platform === "win32" ? path.join(options.vendorPath, "Update.com") : "mono", prepareArgs(args, path.join(options.vendorPath, "Update-Mono.exe")))
+  await execSw(options, args)
   //noinspection SpellCheckingInspection
   await exec(path.join(options.vendorPath, "candle.exe"), ["-nologo", "-ext", "WixNetFxExtension", "-out", "Setup.wixobj", "Setup.wxs"], {
     cwd: outputDirectory,
@@ -253,7 +266,7 @@ async function encodedZip(archive: any, dir: string, prefix: string, vendorPath:
       if (file.endsWith(".exe") && !file.includes("squirrel.exe") && !relativeSafeFilePath.includes("/")) {
         const tempFile = await packager.getTempFile("stub.exe")
         await copyFile(path.join(vendorPath, "StubExecutable.exe"), tempFile)
-        await execWine(path.join(vendorPath, "WriteZipToSetup.exe"), ["--copy-stub-resources", file, tempFile])
+        await execWine(path.join(vendorPath, "WriteZipToSetup.exe"), null, ["--copy-stub-resources", file, tempFile])
         await packager.sign(tempFile)
 
         archive._append(tempFile, {
